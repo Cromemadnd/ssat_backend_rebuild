@@ -1,0 +1,19 @@
+{
+  "mysql": {
+    "host": "localhost",
+    "port": 3306,
+    "username": "root",
+    "password": "123456",
+    "db_name": "AeroSentinel",
+    "charset": "utf8"
+  },
+  "mongodb": {
+    "host": "localhost",
+    "port": 27017,
+    "db_name": "AeroSentinel"
+  },
+  "jwt": {
+    "secret": "qB2:uL1-fL9/qW1_lZ6*vN0~yS6+hV8<",
+    "expires": 3600
+  }
+}

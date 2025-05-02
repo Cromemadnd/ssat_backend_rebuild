@@ -11,15 +11,14 @@ import (
 	"gorm.io/gorm"
 )
 
-func connectDB(config DBConfig) (*gorm.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/?charset=%s&parseTime=True&loc=Local",
+func connectSQL(config SQLConfig) (*gorm.DB, error) {
+	// 连接到MySQL服务器（不指定数据库）
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=%s&parseTime=True&loc=Local",
 		config.Username,
 		config.Password,
 		config.Host,
 		config.Port,
 		config.Charset)
-
-	// 连接到MySQL服务器（不指定数据库）
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
@@ -32,7 +31,7 @@ func connectDB(config DBConfig) (*gorm.DB, error) {
 	}
 
 	// 重新连接到指定的数据库
-	dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=True&loc=Local",
+	dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local",
 		config.Username,
 		config.Password,
 		config.Host,
@@ -64,7 +63,8 @@ func connectDB(config DBConfig) (*gorm.DB, error) {
 // 连接数据库
 func main() {
 	// 连接数据库
-	db, err := connectDB(dbConfig)
+	LoadConfig()
+	db, err := connectSQL(MyConfig.SQLConfig)
 	if err != nil {
 		log.Fatalf("数据库连接失败: %v", err)
 	}
@@ -81,16 +81,17 @@ func main() {
 	}
 
 	fmt.Println("数据库连接成功!")
-	db.AutoMigrate(&models.Device{})
+	err = db.AutoMigrate(&models.Device{}, &models.User{})
+	fmt.Println("ERRORSSSS: ", err)
 
 	// 设置Gin
 	router := gin.Default()
 
 	// 设置路由
-	SetupRoutes(router, db)
+	SetupRoutes(router, db, MyConfig)
 
 	// 启动服务器
-	if err := router.Run(":8080"); err != nil {
+	if err := router.Run(":5000"); err != nil {
 		log.Fatal("服务器启动失败: ", err)
 	}
 }

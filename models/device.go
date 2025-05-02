@@ -4,13 +4,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Device struct {
-	UUID       uuid.UUID `json:"id" gorm:"primaryKey"`
-	Name       string    `json:"name" gorm:"type:varchar(100);not null"`
-	Status     int       `json:"status" gorm:"type:int;not null"`
-	LastOnline time.Time `json:"last_online"`
-	OwnerID    uuid.UUID `json:"owner_id"`
-	Owner      User      `json:"owner" gorm:"foreignKey:OwnerID"`
+	UUID         uuid.UUID `json:"uuid" gorm:"primaryKey;type:char(36)"`
+	Status       int       `json:"status" gorm:"type:int"`
+	LastReceived time.Time `json:"last_received"`
+	OwnerID      uuid.UUID `json:"-" gorm:"type:char(36)"`
+	Owner        User      `json:"owner" gorm:"foreignKey:OwnerID"`
+}
+
+func (d *Device) BeforeCreate(tx *gorm.DB) error {
+	if d.UUID == uuid.Nil {
+		d.UUID = uuid.New()
+	}
+	return nil
 }

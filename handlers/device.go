@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"net/http"
-
 	"ssat_backend_rebuild/models"
+	"ssat_backend_rebuild/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -18,28 +18,36 @@ func (h *DeviceHandler) GetDevices(c *gin.Context) {
 	var devices []models.Device
 
 	if result := h.DB.Find(&devices); result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取设备列表失败",
-		})
+		utils.Respond(c, nil, utils.ErrInternalServer)
 		return
 	}
 
-	c.JSON(http.StatusOK, devices)
+	utils.Respond(c, devices, utils.ErrOK)
+}
+
+// GetDevices 获取设备列表
+func (h *DeviceHandler) GetMyDevices(c *gin.Context) {
+	var devices []models.Device
+
+	if result := h.DB.Where("owner_id = ?", 123).Find(&devices); result.Error != nil {
+		utils.Respond(c, nil, utils.ErrInternalServer)
+		return
+	}
+
+	utils.Respond(c, devices, utils.ErrOK)
 }
 
 // GetDevice 获取单个设备
 func (h *DeviceHandler) GetDevice(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("uuid")
 	var device models.Device
 
 	if result := h.DB.First(&device, "id = ?", id); result.Error != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "设备不存在",
-		})
+		utils.Respond(c, nil, utils.ErrInternalServer)
 		return
 	}
 
-	c.JSON(http.StatusOK, device)
+	utils.Respond(c, device, utils.ErrOK)
 }
 
 // CreateDevice 创建设备
@@ -47,9 +55,7 @@ func (h *DeviceHandler) CreateDevice(c *gin.Context) {
 	var device models.Device
 
 	if err := c.ShouldBindJSON(&device); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求参数无效",
-		})
+		utils.Respond(c, nil, utils.ErrNotFound)
 		return
 	}
 
@@ -65,7 +71,7 @@ func (h *DeviceHandler) CreateDevice(c *gin.Context) {
 
 // UpdateDevice 更新设备
 func (h *DeviceHandler) UpdateDevice(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("uuid")
 	var device models.Device
 
 	if result := h.DB.First(&device, "id = ?", id); result.Error != nil {
@@ -88,7 +94,7 @@ func (h *DeviceHandler) UpdateDevice(c *gin.Context) {
 
 // DeleteDevice 删除设备
 func (h *DeviceHandler) DeleteDevice(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("uuid")
 
 	if result := h.DB.Delete(&models.Device{}, "id = ?", id); result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
