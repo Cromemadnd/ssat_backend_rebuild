@@ -32,10 +32,10 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, config Config) {
 		devices := apiRouter.Group("/devices")
 		devices.Use(authMiddleware.AuthRequired())
 		{
-			// devices.GET("/my_devices", deviceHandler.MyDevices())
-			// devices.POST("/:uuid/bind", deviceHandler.Bind())
-			// devices.POST("/:uuid/unbind", deviceHandler.Unbind())
-			// devices.GET("/my_devices/:uuid", deviceHandler.Retrieve())
+			devices.GET("/my_devices", deviceHandler.MyDevices)
+			devices.GET("/my_devices/:uuid", deviceHandler.RetrieveMyDevice)
+			devices.POST("/:uuid/bind", deviceHandler.Bind)
+			devices.POST("/:uuid/unbind", deviceHandler.Unbind)
 
 			// 需要权限控制的设备操作
 			devices.Use(authMiddleware.PermRequired(utils.ReadDevices))

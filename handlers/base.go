@@ -51,7 +51,7 @@ func (h *BaseHandler[T]) GetObjects(query *gorm.DB) ([]T, error) {
 	return objects, nil
 }
 
-func (h *BaseHandler[T]) UpdateObject(query *gorm.DB, object *T, data map[string]any) error {
+func (h *BaseHandler[T]) UpdateObject(c *gin.Context, query *gorm.DB, object *T, data map[string]any) error {
 	// 更新模型实例
 	return query.Model(&object).Updates(data).Error
 }
@@ -88,7 +88,7 @@ func StructToJsonMap(obj any, fields []string) map[string]any {
 
 func (h *BaseHandler[T]) Create(
 	fields []string,
-	updaterFn func(query *gorm.DB, object *T, data map[string]any) error,
+	updaterFn func(c *gin.Context, query *gorm.DB, object *T, data map[string]any) error,
 ) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		query := h.Select(fields)
@@ -100,16 +100,23 @@ func (h *BaseHandler[T]) Create(
 		}
 
 		fieldsIn := make(map[string]any)
-		if err := c.ShouldBindJSON(&fieldsIn); err != nil {
+		body, err := c.GetRawData()
+		if err != nil {
 			utils.Respond(c, nil, utils.ErrMissingParam)
 			return
+		}
+		if len(body) > 0 {
+			if err := json.Unmarshal(body, &fieldsIn); err != nil {
+				utils.Respond(c, nil, utils.ErrMissingParam)
+				return
+			}
 		}
 
 		if updaterFn == nil {
 			updaterFn = h.UpdateObject
 		}
-		if err := updaterFn(query, &result, fieldsIn); err != nil {
-			utils.Respond(c, nil, utils.ErrInternalServer)
+		if err := updaterFn(c, query, &result, fieldsIn); err != nil {
+			utils.Respond(c, nil, utils.ErrBadRequest)
 			return
 		}
 
@@ -173,7 +180,7 @@ func (h *BaseHandler[T]) Retrieve(
 func (h *BaseHandler[T]) Update(
 	fields []string,
 	filterFn func(c *gin.Context, query *gorm.DB) *gorm.DB,
-	updaterFn func(query *gorm.DB, object *T, data map[string]any) error,
+	updaterFn func(c *gin.Context, query *gorm.DB, object *T, data map[string]any) error,
 ) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		query := h.Select(fields)
@@ -190,16 +197,23 @@ func (h *BaseHandler[T]) Update(
 		}
 
 		fieldsIn := make(map[string]any)
-		if err := c.ShouldBindJSON(&fieldsIn); err != nil {
+		body, err := c.GetRawData()
+		if err != nil {
 			utils.Respond(c, nil, utils.ErrMissingParam)
 			return
+		}
+		if len(body) > 0 {
+			if err := json.Unmarshal(body, &fieldsIn); err != nil {
+				utils.Respond(c, nil, utils.ErrMissingParam)
+				return
+			}
 		}
 
 		if updaterFn == nil {
 			updaterFn = h.UpdateObject
 		}
-		if err := updaterFn(query, &result, fieldsIn); err != nil {
-			utils.Respond(c, nil, utils.ErrInternalServer)
+		if err := updaterFn(c, query, &result, fieldsIn); err != nil {
+			utils.Respond(c, nil, utils.ErrBadRequest)
 			return
 		}
 
@@ -234,203 +248,3 @@ func (h *BaseHandler[T]) Destroy(
 		utils.Respond(c, gin.H{"message": "删除成功"}, utils.ErrOK)
 	}
 }
-
-// func DefaultFilterFn(c *gin.Context) (conditions []any, err error) {
-// 	return nil, nil
-// }
-
-// func DefaultGetterFn(c *gin.Context) (conditions []any, err error) {
-// 	return []any{"uuid = ?", c.Param("uuid")}, nil
-// }
-
-// func DefaultUpdaterFn[T any](c *gin.Context, data *any, model *T) error {
-// 	deviceValue := reflect.ValueOf(model).Elem() // 获取 Device 的值
-// 	dataValue := reflect.ValueOf(data)           // 获取 A 的值
-// 	dataType := reflect.TypeOf(data)             // 获取 A 的类型
-
-// 	for i := 0; i < dataType.NumField(); i++ {
-// 		field := dataType.Field(i) // 获取 A 的每个字段
-// 		if deviceField := deviceValue.FieldByName(field.Name); deviceField.IsValid() && deviceField.CanSet() {
-// 			// 如果 Device 中存在同名字段，并且可以设置值
-// 			deviceField.Set(dataValue.Field(i))
-// 		}
-// 	}
-// 	return nil
-// }
-
-// func (h *BaseHandler[T]) List(
-// 	fieldsOut []string,
-// 	filterFn func(c *gin.Context) (conditions []any, err error),
-// ) func(c *gin.Context) {
-// 	return func(c *gin.Context) {
-// 		// 处理查询参数
-// 		query := h.DB
-// 		if fieldsOut != nil {
-// 			query = query.Select(fieldsOut)
-// 		}
-
-// 		// 调用过滤函数获取条件，查询模型实例
-// 		if filterFn == nil {
-// 			filterFn = DefaultFilterFn
-// 		}
-// 		conditions, err := filterFn(c)
-// 		if err != nil {
-// 			utils.Respond(c, nil, utils.ErrInternalServer)
-// 			return
-// 		}
-// 		var results []map[string]any
-// 		if result := query.Model(new(T)).Find(&results, conditions...); result.Error != nil {
-// 			utils.Respond(c, nil, utils.ErrInternalServer)
-// 			return
-// 		}
-
-// 		utils.Respond(c, results, utils.ErrOK)
-// 	}
-// }
-
-// func (h *BaseHandler[T]) Retrieve(
-// 	fieldsOut []string,
-// 	getterFn func(c *gin.Context) (conditions []any, err error),
-// ) func(c *gin.Context) {
-// 	return func(c *gin.Context) {
-// 		// 处理查询参数
-// 		query := h.DB
-// 		if fieldsOut != nil {
-// 			query = query.Select(fieldsOut)
-// 		}
-
-// 		// 调用过滤函数获取条件，查询模型实例
-// 		conditions, err := getterFn(c)
-// 		if err != nil {
-// 			utils.Respond(c, nil, utils.ErrInternalServer)
-// 			return
-// 		}
-// 		var result map[string]any
-// 		if result := query.Model(new(T)).First(&result, conditions...); result.Error != nil {
-// 			utils.Respond(c, nil, utils.ErrNotFound)
-// 			return
-// 		}
-
-// 		utils.Respond(c, result, utils.ErrOK)
-// 	}
-// }
-
-// func (h *BaseHandler[T]) Create(
-// 	fieldsIn any,
-// 	updaterFn func(c *gin.Context, data *any, model *T) error,
-// ) func(c *gin.Context) {
-// 	return func(c *gin.Context) {
-// 		// 处理传入参数
-// 		query := h.DB
-// 		if fieldsIn == nil {
-// 			fieldsIn = new(T)
-// 		}
-// 		if err := c.ShouldBindJSON(&fieldsIn); err != nil {
-// 			utils.Respond(c, nil, utils.ErrMissingParam)
-// 			return
-// 		}
-
-// 		var model T
-
-// 		// 调用更新函数
-// 		if updaterFn == nil {
-// 			updaterFn = DefaultUpdaterFn[T]
-// 		}
-// 		if err := updaterFn(c, &fieldsIn, &model); err != nil {
-// 			utils.Respond(c, nil, utils.ErrInternalServer)
-// 			return
-// 		}
-
-// 		// 创建新模型实例
-// 		if result := query.Create(&model); result.Error != nil {
-// 			utils.Respond(c, nil, utils.ErrInternalServer)
-// 			return
-// 		}
-// 		utils.Respond(c, model, utils.ErrCreated)
-// 	}
-// }
-
-// func (h *BaseHandler[T]) Update(
-// 	fieldsIn map[string]any,
-// 	fieldsOut []string,
-// 	getterFn func(c *gin.Context) (conditions []any, err error),
-// 	updaterFn func(c *gin.Context, data *map[string]any, model *T) error,
-// ) func(c *gin.Context) {
-// 	return func(c *gin.Context) {
-// 		// 处理传入参数
-// 		var model T
-// 		query := h.DB
-// 		if fieldsOut != nil {
-// 			query = query.Select(fieldsOut)
-// 		}
-// 		if fieldsIn == nil {
-// 			if err := c.ShouldBindJSON(&model); err != nil {
-// 				utils.Respond(c, nil, utils.ErrMissingParam)
-// 				return
-// 			}
-// 		} else {
-// 			if err := c.ShouldBindJSON(&fieldsIn); err != nil {
-// 				utils.Respond(c, nil, utils.ErrMissingParam)
-// 				return
-// 			}
-// 		}
-
-// 		// 调用过滤函数获取条件，查询模型实例
-// 		if getterFn == nil {
-// 			getterFn = DefaultGetterFn
-// 		}
-// 		conditions, err := getterFn(c)
-// 		if err != nil {
-// 			utils.Respond(c, nil, utils.ErrInternalServer)
-// 			return
-// 		}
-// 		if result := query.First(&model, conditions...); result.Error != nil {
-// 			utils.Respond(c, nil, utils.ErrNotFound)
-// 			return
-// 		}
-
-// 		// 更新模型实例
-// 		if updaterFn == nil {
-// 			updaterFn = DefaultUpdaterFn[T]
-// 		}
-// 		if err := updaterFn(c, &fieldsIn, &model); err != nil {
-// 			utils.Respond(c, nil, utils.ErrMissingParam)
-// 			return
-// 		}
-
-// 		// 保存模型实例
-// 		query.Save(&model)
-// 		utils.Respond(c, model, utils.ErrOK)
-// 	}
-// }
-
-// func (h *BaseHandler[T]) Destroy(
-// 	getterFn func(c *gin.Context) (conditions []any, err error),
-// ) func(c *gin.Context) {
-// 	return func(c *gin.Context) {
-// 		query := h.DB
-
-// 		// 调用过滤函数获取条件，查询模型实例
-// 		var model T
-// 		if getterFn == nil {
-// 			getterFn = DefaultGetterFn
-// 		}
-// 		conditions, err := getterFn(c)
-// 		if err != nil {
-// 			utils.Respond(c, nil, utils.ErrInternalServer)
-// 			return
-// 		}
-// 		if result := query.First(&model, conditions...); result.Error != nil {
-// 			utils.Respond(c, nil, utils.ErrNotFound)
-// 			return
-// 		}
-
-// 		// 删除模型实例
-// 		if result := query.Delete(&model); result.Error != nil {
-// 			utils.Respond(c, nil, utils.ErrInternalServer)
-// 			return
-// 		}
-
-// 		utils.Respond(c, gin.H{"message": "删除成功"}, utils.ErrOK)
-// 	}
-// }
