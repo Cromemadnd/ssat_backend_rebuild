@@ -1,109 +1,110 @@
 package handlers
 
 import (
-	"net/http"
+	"errors"
+	"fmt"
 	"ssat_backend_rebuild/models"
-	"ssat_backend_rebuild/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type DeviceHandler struct {
-	DB *gorm.DB
+	BaseHandler[models.Device]
 }
 
-// GetDevices 获取设备列表
-func (h *DeviceHandler) GetDevices(c *gin.Context) {
-	var devices []models.Device
+// "uuid = ?", c.Param("uuid")
 
-	if result := h.DB.Find(&devices); result.Error != nil {
-		utils.Respond(c, nil, utils.ErrInternalServer)
-		return
-	}
+func (h *DeviceHandler) Create(c *gin.Context) {
+	h.BaseHandler.Create(
+		nil,
+		func(query *gorm.DB, device *models.Device, data map[string]any) error {
+			fmt.Println("Create device:", data)
+			device_id, ok := data["device_id"].(string)
+			if !ok {
+				return errors.New("device_id is required")
+			}
+			device.DeviceID = device_id
 
-	utils.Respond(c, devices, utils.ErrOK)
+			secret, ok := data["secret"].(string)
+			if !ok {
+				return errors.New("secret is required")
+			}
+			device.Secret = secret
+
+			return nil
+		},
+	)(c)
 }
 
-// GetDevices 获取设备列表
-func (h *DeviceHandler) GetMyDevices(c *gin.Context) {
-	var devices []models.Device
-
-	if result := h.DB.Where("owner_id = ?", 123).Find(&devices); result.Error != nil {
-		utils.Respond(c, nil, utils.ErrInternalServer)
-		return
-	}
-
-	utils.Respond(c, devices, utils.ErrOK)
+func (h *DeviceHandler) Retrieve(c *gin.Context) {
+	h.BaseHandler.Retrieve(
+		nil,
+		nil,
+	)(c)
 }
 
-// GetDevice 获取单个设备
-func (h *DeviceHandler) GetDevice(c *gin.Context) {
-	id := c.Param("uuid")
-	var device models.Device
-
-	if result := h.DB.First(&device, "id = ?", id); result.Error != nil {
-		utils.Respond(c, nil, utils.ErrInternalServer)
-		return
-	}
-
-	utils.Respond(c, device, utils.ErrOK)
+func (h *DeviceHandler) List(c *gin.Context) {
+	h.BaseHandler.List(
+		[]string{"uuid", "device_id", "status"},
+		nil,
+	)(c)
 }
 
-// CreateDevice 创建设备
-func (h *DeviceHandler) CreateDevice(c *gin.Context) {
-	var device models.Device
-
-	if err := c.ShouldBindJSON(&device); err != nil {
-		utils.Respond(c, nil, utils.ErrNotFound)
-		return
-	}
-
-	if result := h.DB.Create(&device); result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "创建设备失败",
-		})
-		return
-	}
-
-	c.JSON(http.StatusCreated, device)
+func (h *DeviceHandler) Update(c *gin.Context) {
+	h.BaseHandler.Update(
+		[]string{"device_id", "status"},
+		nil,
+		nil,
+	)(c)
 }
 
-// UpdateDevice 更新设备
-func (h *DeviceHandler) UpdateDevice(c *gin.Context) {
-	id := c.Param("uuid")
-	var device models.Device
-
-	if result := h.DB.First(&device, "id = ?", id); result.Error != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "设备不存在",
-		})
-		return
-	}
-
-	if err := c.ShouldBindJSON(&device); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求参数无效",
-		})
-		return
-	}
-
-	h.DB.Save(&device)
-	c.JSON(http.StatusOK, device)
+func (h *DeviceHandler) Destroy(c *gin.Context) {
+	h.BaseHandler.Destroy(
+		nil,
+	)(c)
 }
 
-// DeleteDevice 删除设备
-func (h *DeviceHandler) DeleteDevice(c *gin.Context) {
-	id := c.Param("uuid")
-
-	if result := h.DB.Delete(&models.Device{}, "id = ?", id); result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "删除设备失败",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "设备已删除",
-	})
+func (h *DeviceHandler) Bind(c *gin.Context) {
+	h.BaseHandler.Update(
+		[]string{},
+		nil,
+		nil,
+		func(c *gin.Context, data *any, model *models.Device) error {
+			// 绑定设备时，检查设备的拥有者是否为当前用户
+			if model.OwnerID != nil && *model.OwnerID != uuid.Nil {
+				return errors.New("设备已绑定")
+			}
+			// 获取当前用户的UUID
+			currentUser := c.MustGet("currentUser").(models.User)
+			// 将当前用户的UUID绑定到设备上
+			model.OwnerID = &currentUser.UUID
+		},
+	)(c)
 }
+
+// func (h *DeviceHandler) Unbind() func(c *gin.Context) {
+// 	return h.BaseHandler.Update(
+// 		struct{}{},
+// 		nil,
+// 		nil,
+// 		func(c *gin.Context, data *any, model *models.Device) error {
+// 			// 解绑设备时，检查设备的拥有者是否为当前用户
+// 			if model.OwnerID != c.MustGet("currentUser").(models.User).UUID {
+// 				return errors.New("设备未绑定为当前用户")
+// 			}
+// 			model.OwnerID = uuid.Nil
+// 			return nil
+// 		},
+// 	)
+// }
+
+// func (h *DeviceHandler) MyDevices() func(c *gin.Context) {
+// 	return h.BaseHandler.List(
+// 		[]string{"uuid", "status"},
+// 		func(c *gin.Context) (conditions []any, err error) {
+// 			return []any{"owner_id = ?", c.MustGet("currentUser").(models.User).UUID}, nil
+// 		},
+// 	)
+// }

@@ -12,6 +12,11 @@ var (
 		HttpCode: 200,
 		Message:  "请求成功",
 	}
+	ErrCreated = ErrorCode{
+		Code:     0,
+		HttpCode: 201,
+		Message:  "创建成功",
+	}
 	ErrNotFound = ErrorCode{
 		Code:     1,
 		HttpCode: 404,

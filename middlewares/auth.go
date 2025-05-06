@@ -66,7 +66,7 @@ func (a *AuthMiddleware) PermRequired(permission uint8) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.MustGet("currentUser").(*models.User)
 
-		if user.Permissions&permission == 0 {
+		if !user.HasPerm(permission) {
 			utils.Respond(c, nil, utils.ErrForbidden)
 			return
 		}
