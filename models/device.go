@@ -14,6 +14,7 @@ type Device struct {
 	LastReceived *time.Time `json:"last_received" gorm:"null"`
 	OwnerID      *uuid.UUID `json:"-" gorm:"type:char(36);null"`
 	Owner        *User      `json:"owner" gorm:"foreignKey:OwnerID"`
+	Data         *[]Data    `json:"data" gorm:"foreignKey:MyDeviceID"`
 	BaseModel
 }
 

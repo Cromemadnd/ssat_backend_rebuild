@@ -4,7 +4,6 @@ import (
 	"ssat_backend_rebuild/handlers"
 	"ssat_backend_rebuild/middlewares"
 	"ssat_backend_rebuild/models"
-	"ssat_backend_rebuild/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -38,13 +37,10 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, config Config) {
 			devices.POST("/:uuid/unbind", deviceHandler.Unbind)
 
 			// 需要权限控制的设备操作
-			devices.Use(authMiddleware.PermRequired(utils.ReadDevices))
+			devices.Use(authMiddleware.AdminOnly())
 			{
 				devices.GET("/", deviceHandler.List)
 				devices.GET("/:uuid", deviceHandler.Retrieve)
-			}
-			devices.Use(authMiddleware.PermRequired(utils.WriteDevices))
-			{
 				devices.POST("/", deviceHandler.Create)
 				devices.PUT("/:uuid", deviceHandler.Update)
 				devices.DELETE("/:uuid", deviceHandler.Destroy)

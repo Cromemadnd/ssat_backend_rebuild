@@ -50,7 +50,7 @@ func (h *DeviceHandler) List(c *gin.Context) {
 
 func (h *DeviceHandler) Update(c *gin.Context) {
 	h.BaseHandler.Update(
-		[]string{"device_id", "status"},
+		[]string{"device_id", "status", "owner_id"},
 		nil,
 		nil,
 	)(c)

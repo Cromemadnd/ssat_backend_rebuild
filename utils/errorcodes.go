@@ -6,6 +6,10 @@ type ErrorCode struct {
 	Message  string
 }
 
+func (e ErrorCode) Error() string {
+	return e.Message
+}
+
 var (
 	ErrOK = ErrorCode{
 		Code:     0,
@@ -71,6 +75,26 @@ var (
 		Code:     11,
 		HttpCode: 400,
 		Message:  "已登录",
+	}
+	ErrUnknownDevice = ErrorCode{
+		Code:     12,
+		HttpCode: 404,
+		Message:  "未知的设备ID",
+	}
+	ErrInvalidSignature = ErrorCode{
+		Code:     13,
+		HttpCode: 400,
+		Message:  "无效的签名",
+	}
+	ErrExpiredRequest = ErrorCode{
+		Code:     14,
+		HttpCode: 400,
+		Message:  "时间戳过旧",
+	}
+	ErrReplayAttack = ErrorCode{
+		Code:     15,
+		HttpCode: 400,
+		Message:  "检测到重放攻击",
 	}
 	ErrForbidden = ErrorCode{
 		Code:     1001,
