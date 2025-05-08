@@ -69,10 +69,11 @@ func (h *DataHandler) Upload(c *gin.Context) {
 	DataCache.Set(reqBody.Signature, true, 2*time.Minute)
 
 	// 创建数据记录
-	if err := h.DB.Create(&reqBody).Error; err != nil {
-		utils.Respond(c, nil, utils.ErrInternalServer)
-		return
-	}
+
+	// if err := h.DB.Create(&reqBody).Error; err != nil {
+	// 	utils.Respond(c, nil, utils.ErrInternalServer)
+	// 	return
+	// }
 
 	utils.Respond(c, nil, utils.ErrOK)
 }

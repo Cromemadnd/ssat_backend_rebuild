@@ -62,6 +62,7 @@ func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 
 			// 获取 token 过期时间
 			exp, err := token.Claims.GetExpirationTime()
+
 			if err != nil {
 				utils.Respond(c, nil, utils.ErrInvalidJWT)
 				return

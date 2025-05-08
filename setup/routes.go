@@ -1,4 +1,4 @@
-package main
+package setup
 
 import (
 	"ssat_backend_rebuild/handlers"
@@ -6,10 +6,11 @@ import (
 	"ssat_backend_rebuild/models"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
 
-func SetupRoutes(router *gin.Engine, db *gorm.DB, config Config) {
+func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Client, config Config) {
 	// 初始化处理器
 	deviceHandler := &handlers.DeviceHandler{
 		BaseHandler: handlers.BaseHandler[models.Device]{DB: db},

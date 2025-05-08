@@ -1,4 +1,4 @@
-package main
+package setup
 
 import (
 	"encoding/json"
@@ -32,9 +32,8 @@ type Config struct {
 	JWTConfig   JWTConfig   `json:"jwt"`
 }
 
-var MyConfig Config
-
-func LoadConfig() {
+func LoadConfig() Config {
+	config := Config{}
 	file, err := os.Open("config.json")
 	if err != nil {
 		panic("Failed to open config.json: " + err.Error())
@@ -42,8 +41,9 @@ func LoadConfig() {
 	defer file.Close()
 
 	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&MyConfig)
+	err = decoder.Decode(&config)
 	if err != nil {
 		panic("Failed to decode config.json: " + err.Error())
 	}
+	return config
 }
