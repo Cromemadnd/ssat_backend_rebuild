@@ -31,7 +31,9 @@ func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 		}
 
 		user := &models.User{}
-		if user, found := AuthCache.Get(tokenStr); !found {
+		if cached, found := AuthCache.Get(tokenStr); found {
+			user = cached.(*models.User)
+		} else {
 			// 验证token并获取用户
 			claims := &jwt.RegisteredClaims{}
 			token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
@@ -50,12 +52,15 @@ func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 
 			uuid, err := token.Claims.GetSubject()
 			if err != nil {
+				c.SetCookie("Authorization", "", -1, "/", "", false, true)
 				utils.Respond(c, nil, utils.ErrInvalidJWT)
 				return
 			}
 
 			result := m.DB.First(user, "uuid = ?", uuid)
+			//log.Printf("sss user: %v", user)
 			if result.Error != nil {
+				c.SetCookie("Authorization", "", -1, "/", "", false, true)
 				utils.Respond(c, nil, utils.ErrUserNotFound)
 				return
 			}
@@ -64,6 +69,7 @@ func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 			exp, err := token.Claims.GetExpirationTime()
 
 			if err != nil {
+				c.SetCookie("Authorization", "", -1, "/", "", false, true)
 				utils.Respond(c, nil, utils.ErrInvalidJWT)
 				return
 			}
@@ -72,6 +78,7 @@ func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 		}
 
 		// 将用户信息存储到上下文中
+		//log.Printf("user: %v", user)
 		c.Set("currentUser", user)
 		c.Next()
 	}

@@ -10,16 +10,26 @@ import (
 	"gorm.io/gorm"
 )
 
-func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Client, config Config) {
+func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, config Config) {
 	// 初始化处理器
 	deviceHandler := &handlers.DeviceHandler{
 		BaseHandler: handlers.BaseHandler[models.Device]{DB: db},
 	}
+	userHandler := &handlers.UserHandler{
+		BaseHandler: handlers.BaseHandler[models.User]{DB: db},
+	}
+	dataHandler := &handlers.DataHandler{
+		MongoCollection: dbMongo,
+		BaseHandler:     handlers.BaseHandler[models.Data]{DB: db},
+	}
+
 	// userHandler := &handlers.BaseHandler[models.User]{DB: db}
 	authHandler := &handlers.AuthHandler{
-		DB:         db,
-		JWTSecret:  config.JWTConfig.Secret,
-		JWTExpires: config.JWTConfig.Expires,
+		DB:           db,
+		JWTSecret:    config.JWTConfig.Secret,
+		JWTExpires:   config.JWTConfig.Expires,
+		WechatAppID:  config.WechatConfig.AppID,
+		WechatSecret: config.WechatConfig.Secret,
 	}
 	authMiddleware := &middlewares.AuthMiddleware{
 		DB:        db,
@@ -28,7 +38,14 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Client, config 
 
 	apiRouter := router.Group("/")
 	{
-		// 设备相关路由
+		auth := apiRouter.Group("/auth")
+		{
+			auth.POST("/login", authHandler.Login)
+			auth.POST("/logout", authMiddleware.AuthRequired(), authHandler.Logout)
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/wechat_login", authHandler.WechatLogin)
+		}
+
 		devices := apiRouter.Group("/devices")
 		devices.Use(authMiddleware.AuthRequired())
 		{
@@ -48,33 +65,26 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Client, config 
 			}
 		}
 
-		// users := apiRouter.Group("/users")
-		// users.Use(authMiddleware.AuthRequired())
-		// {
-		// 	users.GET("/my_profile", userHandler.)
-		// 	users.GET("/",
-		// 		authMiddleware.AuthRequired(),
-		// 		authMiddleware.PermRequired(utils.ReadUsers),
-		// 		userHandler.GetUsers)
-		// 	users.GET("/:uuid",
-		// 		authMiddleware.AuthRequired(),
-		// 		authMiddleware.PermRequired(utils.ReadUsers),
-		// 		userHandler.GetUser)
-		// 	users.PUT("/:uuid",
-		// 		authMiddleware.AuthRequired(),
-		// 		authMiddleware.PermRequired(utils.WriteUsers),
-		// 		userHandler.UpdateUser)
-		// 	users.DELETE("/:uuid",
-		// 		authMiddleware.AuthRequired(),
-		// 		authMiddleware.PermRequired(utils.WriteUsers),
-		// 		userHandler.DeleteUser)
-		// }
-
-		auth := apiRouter.Group("/auth")
+		users := apiRouter.Group("/users")
+		users.Use(authMiddleware.AuthRequired())
 		{
-			auth.POST("/login", authHandler.Login)
-			auth.POST("/logout", authMiddleware.AuthRequired(), authHandler.Logout)
-			auth.POST("/register", authHandler.Register)
+			users.GET("/my_profile", userHandler.MyProfile)
+			users.Use(authMiddleware.AdminOnly())
+			{
+				users.GET("/", userHandler.List)
+				users.GET("/:uuid", userHandler.Retrieve)
+				users.PUT("/:uuid", userHandler.Update)
+				users.DELETE("/:uuid", userHandler.Destroy)
+			}
+		}
+
+		data := apiRouter.Group("/data")
+		{
+			data.POST("/upload", dataHandler.Upload)
+			data.Use(authMiddleware.AuthRequired())
+			{
+
+			}
 		}
 	}
 }

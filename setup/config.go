@@ -15,9 +15,10 @@ type SQLConfig struct {
 }
 
 type MongoConfig struct {
-	Host   string `json:"host"`
-	Port   int    `json:"port"`
-	DBName string `json:"db_name"`
+	Host       string `json:"host"`
+	Port       int    `json:"port"`
+	DBName     string `json:"db_name"`
+	Collection string `json:"collection"`
 }
 
 type JWTConfig struct {
@@ -26,10 +27,17 @@ type JWTConfig struct {
 	Refresh int    `json:"refresh"`
 }
 
+type WechatConfig struct {
+	AppID  string `json:"app_id"`
+	Secret string `json:"secret"`
+}
+
 type Config struct {
-	SQLConfig   SQLConfig   `json:"mysql"`
-	MongoConfig MongoConfig `json:"mongodb"`
-	JWTConfig   JWTConfig   `json:"jwt"`
+	SQLConfig    SQLConfig    `json:"mysql"`
+	MongoConfig  MongoConfig  `json:"mongodb"`
+	JWTConfig    JWTConfig    `json:"jwt"`
+	WechatConfig WechatConfig `json:"wechat"`
+	ServerAddr   string       `json:"server_addr"`
 }
 
 func LoadConfig() Config {

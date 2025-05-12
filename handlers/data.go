@@ -10,9 +10,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/patrickmn/go-cache"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type DataHandler struct {
+	MongoCollection *mongo.Collection
 	BaseHandler[models.Data]
 }
 
@@ -48,7 +50,7 @@ func (h *DataHandler) Upload(c *gin.Context) {
 	}
 
 	// 校验时间戳
-	if time.Since(time.UnixMilli(reqBody.Timestamp)) > time.Minute {
+	if time.Since(time.UnixMilli(reqBody.Timestamp)) > time.Minu te {
 		utils.Respond(c, nil, utils.ErrExpiredRequest)
 		return
 	}
@@ -69,6 +71,11 @@ func (h *DataHandler) Upload(c *gin.Context) {
 	DataCache.Set(reqBody.Signature, true, 2*time.Minute)
 
 	// 创建数据记录
+	reqBody.Signature = ""
+	if _, err := h.MongoCollection.InsertOne(c, reqBody); err != nil {
+		utils.Respond(c, nil, utils.ErrInternalServer)
+		return
+	}
 
 	// if err := h.DB.Create(&reqBody).Error; err != nil {
 	// 	utils.Respond(c, nil, utils.ErrInternalServer)

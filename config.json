@@ -10,10 +10,16 @@
   "mongodb": {
     "host": "localhost",
     "port": 27017,
-    "db_name": "AeroSentinel"
+    "db_name": "AeroSentinel",
+    "collection": "EnvData"
   },
   "jwt": {
     "secret": "qB2:uL1-fL9/qW1_lZ6*vN0~yS6+hV8<",
     "expires": 3600
-  }
+  },
+  "wechat": {
+    "app_id": "?",
+    "secret": "?"
+  },
+  "server_addr": ":5000"
 }

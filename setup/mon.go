@@ -10,11 +10,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func SetupMongo(config MongoConfig) *mongo.Client {
+func SetupMongo(config MongoConfig) *mongo.Collection {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	uri := fmt.Sprintf("mongodb://%s:%d/%s", config.Host, config.Port, config.DBName)
+	uri := fmt.Sprintf("mongodb://%s:%d", config.Host, config.Port)
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri).SetConnectTimeout(10*time.Second))
 	if err != nil {
 		log.Fatalf("MongoDB连接失败: %v", err)
@@ -25,5 +25,6 @@ func SetupMongo(config MongoConfig) *mongo.Client {
 		log.Fatalf("MongoDB连接测试失败: %v", err)
 		return nil
 	}
-	return client
+
+	return client.Database(config.DBName).Collection(config.Collection)
 }

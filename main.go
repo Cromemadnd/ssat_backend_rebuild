@@ -21,7 +21,7 @@ func main() {
 	setup.SetupRoutes(router, db, dbMongo, myConfig)
 
 	// 启动服务器
-	if err := router.Run(":5000"); err != nil {
+	if err := router.Run(myConfig.ServerAddr); err != nil {
 		log.Fatal("服务器启动失败: ", err)
 	}
 }
