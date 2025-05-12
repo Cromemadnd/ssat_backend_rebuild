@@ -50,7 +50,7 @@ func (h *DataHandler) Upload(c *gin.Context) {
 	}
 
 	// 校验时间戳
-	if time.Since(time.UnixMilli(reqBody.Timestamp)) > time.Minu te {
+	if time.Since(time.UnixMilli(reqBody.Timestamp)) > time.Minute {
 		utils.Respond(c, nil, utils.ErrExpiredRequest)
 		return
 	}
