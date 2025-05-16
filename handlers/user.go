@@ -15,7 +15,7 @@ func (h *UserHandler) MyProfile(c *gin.Context) {
 	h.BaseHandler.Retrieve(
 		nil,
 		func(c *gin.Context, query *gorm.DB) *gorm.DB {
-			return query.Where("uuid = ?", c.MustGet("currentUser").(*models.User).UUID)
+			return query.Where("uuid = ?", c.MustGet("CurrentUser").(*models.User).UUID)
 		},
 	)(c)
 }

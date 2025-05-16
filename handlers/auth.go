@@ -23,19 +23,13 @@ type AuthHandler struct {
 	WechatSecret string
 }
 
-type LoginRequestBody struct {
+type AdminLoginRequestBody struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-func (h *AuthHandler) Login(c *gin.Context) {
-	authCookie, err := c.Cookie("Authorization")
-	if authCookie != "" && err == nil {
-		utils.Respond(c, nil, utils.ErrAlreadyLoggedIn)
-		return
-	}
-
-	var loginRequestBody LoginRequestBody
+func (h *AuthHandler) AdminLogin(c *gin.Context) {
+	var loginRequestBody AdminLoginRequestBody
 	if err := c.ShouldBindJSON(&loginRequestBody); err != nil {
 		utils.Respond(c, nil, utils.ErrMissingParam)
 		return
@@ -47,7 +41,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	hash := md5.Sum([]byte(password))
 	hashedPassword := hex.EncodeToString(hash[:])
 
-	user := &models.User{}
+	user := &models.Admin{}
 	result := h.DB.First(user, "username = ? AND hashed_password = ?", username, hashedPassword)
 	if result.Error != nil {
 		utils.Respond(c, nil, utils.ErrIncorrectAuthInfo)
@@ -55,9 +49,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	claims := &jwt.RegisteredClaims{
-		Issuer:    "ssat_env_monitor",
+		Issuer:    "ssat_admin",
 		Subject:   user.UUID.String(),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		NotBefore: jwt.NewNumericDate(time.Now()),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(h.JWTExpires) * time.Second)),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -68,51 +62,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("Authorization", tokenStr, 3600, "/", "", false, true)
-	utils.Respond(c, user, utils.ErrOK)
+	utils.Respond(c, gin.H{"token": tokenStr, "expires": claims.ExpiresAt.Time.Unix()}, utils.ErrOK)
 }
 
-func (h *AuthHandler) Register(c *gin.Context) {
-	var registerRequestBody LoginRequestBody
-	if err := c.ShouldBindJSON(&registerRequestBody); err != nil {
-		utils.Respond(c, nil, utils.ErrMissingParam)
-		return
-	}
-
-	username := registerRequestBody.Username
-	password := registerRequestBody.Password
-
-	hash := md5.Sum([]byte(password))
-	hashedPassword := hex.EncodeToString(hash[:])
-
-	user := &models.User{
-		Username:       username,
-		HashedPassword: hashedPassword,
-	}
-
-	if result := h.DB.First(user, "username = ?", username); result.Error == nil {
-		utils.Respond(c, nil, utils.ErrUserExists)
-		return
-	}
-
-	if result := h.DB.Create(user); result.Error != nil {
-		utils.Respond(c, nil, utils.ErrInternalServer)
-		return
-	}
-
-	utils.Respond(c, user, utils.ErrOK)
-}
-
-func (h *AuthHandler) Logout(c *gin.Context) {
-	c.SetCookie("Authorization", "", -1, "/", "", false, true)
-	utils.Respond(c, nil, utils.ErrOK)
+type WechatLoginRequestBody struct {
+	Code string `json:"code" binding:"required"`
 }
 
 func (h *AuthHandler) WechatLogin(c *gin.Context) {
-	type WechatLoginRequest struct {
-		Code string `json:"code" binding:"required"`
-	}
-	var req WechatLoginRequest
+	var req WechatLoginRequestBody
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.Respond(c, nil, utils.ErrMissingParam)
 		return
@@ -150,9 +108,7 @@ func (h *AuthHandler) WechatLogin(c *gin.Context) {
 	user := &models.User{}
 	result := h.DB.First(user, "username = ?", wxResp.OpenID)
 	if result.Error != nil {
-		user = &models.User{
-			Username: wxResp.OpenID,
-		}
+		user = &models.User{WechatID: wxResp.OpenID}
 		if err := h.DB.Create(user).Error; err != nil {
 			utils.Respond(c, nil, utils.ErrInternalServer)
 			return
@@ -161,9 +117,9 @@ func (h *AuthHandler) WechatLogin(c *gin.Context) {
 
 	// 3. 生成JWT
 	claims := &jwt.RegisteredClaims{
-		Issuer:    "ssat_env_monitor",
+		Issuer:    "ssat_user",
 		Subject:   user.UUID.String(),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		NotBefore: jwt.NewNumericDate(time.Now()),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(h.JWTExpires) * time.Second)),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -173,6 +129,5 @@ func (h *AuthHandler) WechatLogin(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("Authorization", tokenStr, 3600, "/", "", false, true)
-	utils.Respond(c, user, utils.ErrOK)
+	utils.Respond(c, gin.H{"token": tokenStr, "expires": claims.ExpiresAt.Time.Unix()}, utils.ErrOK)
 }

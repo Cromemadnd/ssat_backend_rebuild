@@ -11,6 +11,20 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, config Config) {
+	// 添加 CORS 中间件
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+
 	// 初始化处理器
 	deviceHandler := &handlers.DeviceHandler{
 		BaseHandler: handlers.BaseHandler[models.Device]{DB: db},
@@ -40,9 +54,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 	{
 		auth := apiRouter.Group("/auth")
 		{
-			auth.POST("/login", authHandler.Login)
-			auth.POST("/logout", authMiddleware.AuthRequired(), authHandler.Logout)
-			auth.POST("/register", authHandler.Register)
+			auth.POST("/login", authHandler.AdminLogin)
 			auth.POST("/wechat_login", authHandler.WechatLogin)
 		}
 

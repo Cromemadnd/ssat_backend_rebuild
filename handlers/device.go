@@ -72,7 +72,7 @@ func (h *DeviceHandler) Bind(c *gin.Context) {
 				return errors.New("设备已绑定")
 			}
 			// 获取当前用户的UUID
-			currentUser := c.MustGet("currentUser").(*models.User)
+			currentUser := c.MustGet("CurrentUser").(*models.User)
 			// 将当前用户的UUID绑定到设备上
 			device.OwnerID = &currentUser.UUID
 			device.Owner = currentUser
@@ -87,7 +87,7 @@ func (h *DeviceHandler) Unbind(c *gin.Context) {
 		nil,
 		func(c *gin.Context, query *gorm.DB, device *models.Device, data map[string]any) error {
 			// 解绑设备时，检查设备的拥有者是否为当前用户
-			if device.OwnerID == nil || *device.OwnerID != c.MustGet("currentUser").(*models.User).UUID {
+			if device.OwnerID == nil || *device.OwnerID != c.MustGet("CurrentUser").(*models.User).UUID {
 				return errors.New("设备未绑定为当前用户")
 			}
 			device.OwnerID = nil
@@ -101,7 +101,7 @@ func (h *DeviceHandler) MyDevices(c *gin.Context) {
 	h.BaseHandler.List(
 		[]string{"uuid", "status"},
 		func(c *gin.Context, query *gorm.DB) *gorm.DB {
-			return query.Where("owner_id = ?", c.MustGet("currentUser").(*models.User).UUID)
+			return query.Where("owner_id = ?", c.MustGet("CurrentUser").(*models.User).UUID)
 		},
 	)(c)
 }
@@ -110,7 +110,7 @@ func (h *DeviceHandler) RetrieveMyDevice(c *gin.Context) {
 	h.BaseHandler.Retrieve(
 		nil,
 		func(c *gin.Context, query *gorm.DB) *gorm.DB {
-			return query.Where("uuid = ? AND owner_id = ?", c.Param("uuid"), c.MustGet("currentUser").(*models.User).UUID)
+			return query.Where("uuid = ? AND owner_id = ?", c.Param("uuid"), c.MustGet("CurrentUser").(*models.User).UUID)
 		},
 	)(c)
 }

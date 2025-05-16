@@ -80,7 +80,7 @@ func SetupSQL(config SQLConfig) *gorm.DB {
 	}
 
 	fmt.Println("数据库连接成功!")
-	err = db.AutoMigrate(&models.Device{}, &models.User{}, &models.Data{}, &models.Log{})
+	err = db.AutoMigrate(&models.Device{}, &models.Admin{}, &models.User{}, &models.Data{}, &models.Log{})
 	if err != nil {
 		log.Fatalf("数据库迁移失败: %v", err)
 		return nil

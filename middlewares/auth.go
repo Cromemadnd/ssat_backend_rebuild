@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"errors"
 	"ssat_backend_rebuild/models"
 	"ssat_backend_rebuild/utils"
 	"time"
@@ -17,83 +16,95 @@ type AuthMiddleware struct {
 	JWTSecret string
 }
 
-var AuthCache = cache.New(5*time.Minute, 10*time.Minute)
+var (
+	AuthUserCache  = cache.New(5*time.Minute, 10*time.Minute)
+	AuthAdminCache = cache.New(5*time.Minute, 10*time.Minute)
+)
 
-// Authenticate 验证用户是否已登录
+// 验证token并获取用户/管理员信息
+func (m *AuthMiddleware) validateToken(c *gin.Context, tokenStr string, model interface{}, issuer string) (bool, time.Duration) {
+	claims := &jwt.RegisteredClaims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(m.JWTSecret), nil
+	},
+		jwt.WithIssuedAt(),
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuer(issuer),
+	)
+
+	if err != nil {
+		utils.Respond(c, nil, utils.ErrInvalidJWT)
+		return false, 0
+	}
+
+	uuid, err := token.Claims.GetSubject()
+	if err != nil {
+		utils.Respond(c, nil, utils.ErrInvalidJWT)
+		return false, 0
+	}
+
+	result := m.DB.First(model, "uuid = ?", uuid)
+	if result.Error != nil {
+		utils.Respond(c, nil, utils.ErrUserNotFound)
+		return false, 0
+	}
+
+	// 获取 token 过期时间
+	exp, err := token.Claims.GetExpirationTime()
+	if err != nil {
+		utils.Respond(c, nil, utils.ErrInvalidJWT)
+		return false, 0
+	}
+
+	return true, time.Until(exp.Time)
+}
+
+// 验证用户是否已登录
 func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 从请求头获取token
-		tokenStr, err := c.Cookie("Authorization")
-
-		if err != nil {
+		tokenStr := c.Request.Header.Get("Authorization")
+		if tokenStr == "" {
 			utils.Respond(c, nil, utils.ErrUnauthorized)
 			return
 		}
 
 		user := &models.User{}
-		if cached, found := AuthCache.Get(tokenStr); found {
+		if cached, found := AuthUserCache.Get(tokenStr); found {
 			user = cached.(*models.User)
 		} else {
-			// 验证token并获取用户
-			claims := &jwt.RegisteredClaims{}
-			token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-				return []byte(m.JWTSecret), nil
-			})
-
-			if err != nil {
-				if errors.Is(err, jwt.ErrTokenExpired) {
-					c.SetCookie("Authorization", "", -1, "/", "", false, true)
-					utils.Respond(c, nil, utils.ErrExpiredJWT)
-					return
-				}
-				utils.Respond(c, nil, utils.ErrInvalidJWT)
+			valid, cacheDuration := m.validateToken(c, tokenStr, user, "ssat_user")
+			if !valid {
 				return
 			}
-
-			uuid, err := token.Claims.GetSubject()
-			if err != nil {
-				c.SetCookie("Authorization", "", -1, "/", "", false, true)
-				utils.Respond(c, nil, utils.ErrInvalidJWT)
-				return
-			}
-
-			result := m.DB.First(user, "uuid = ?", uuid)
-			//log.Printf("sss user: %v", user)
-			if result.Error != nil {
-				c.SetCookie("Authorization", "", -1, "/", "", false, true)
-				utils.Respond(c, nil, utils.ErrUserNotFound)
-				return
-			}
-
-			// 获取 token 过期时间
-			exp, err := token.Claims.GetExpirationTime()
-
-			if err != nil {
-				c.SetCookie("Authorization", "", -1, "/", "", false, true)
-				utils.Respond(c, nil, utils.ErrInvalidJWT)
-				return
-			}
-			cacheDuration := time.Until(exp.Time)
-			AuthCache.Set(tokenStr, user, cacheDuration)
+			AuthUserCache.Set(tokenStr, user, cacheDuration)
 		}
 
-		// 将用户信息存储到上下文中
-		//log.Printf("user: %v", user)
-		c.Set("currentUser", user)
+		c.Set("CurrentUser", user)
 		c.Next()
 	}
 }
 
-// AdminOnly 仅管理员可访问
-func (a *AuthMiddleware) AdminOnly() gin.HandlerFunc {
+// 仅管理员可访问
+func (m *AuthMiddleware) AdminOnly() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user := c.MustGet("currentUser").(*models.User)
-
-		if !user.IsAdmin {
-			utils.Respond(c, nil, utils.ErrForbidden)
+		tokenStr := c.Request.Header.Get("Authorization")
+		if tokenStr == "" {
+			utils.Respond(c, nil, utils.ErrUnauthorized)
 			return
 		}
 
+		admin := &models.Admin{}
+		if cached, found := AuthAdminCache.Get(tokenStr); found {
+			admin = cached.(*models.Admin)
+		} else {
+			valid, cacheDuration := m.validateToken(c, tokenStr, admin, "ssat_admin")
+			if !valid {
+				return
+			}
+			AuthAdminCache.Set(tokenStr, admin, cacheDuration)
+		}
+
+		c.Set("CurrentAdminUser", admin)
 		c.Next()
 	}
 }
