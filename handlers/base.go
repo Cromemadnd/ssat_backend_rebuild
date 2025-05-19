@@ -120,7 +120,7 @@ func (h *BaseHandler[T]) Create(
 			return
 		}
 
-		query.Save(&result)
+		h.DB.Save(&result)
 		utils.Respond(c, result, utils.ErrCreated)
 	}
 }

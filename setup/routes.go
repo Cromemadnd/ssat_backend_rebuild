@@ -14,7 +14,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 	// 添加 CORS 中间件
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		// c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
@@ -59,41 +59,36 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 		}
 
 		devices := apiRouter.Group("/devices")
-		devices.Use(authMiddleware.AuthRequired())
 		{
-			devices.GET("/my_devices", deviceHandler.MyDevices)
-			devices.GET("/my_devices/:uuid", deviceHandler.RetrieveMyDevice)
-			devices.POST("/:uuid/bind", deviceHandler.Bind)
-			devices.POST("/:uuid/unbind", deviceHandler.Unbind)
+			// 只允许普通用户访问
+			devices.GET("/my_devices", authMiddleware.UserOnly(), deviceHandler.MyDevices)
+			devices.GET("/my_devices/:uuid", authMiddleware.UserOnly(), deviceHandler.RetrieveMyDevice)
+			devices.POST("/:uuid/bind", authMiddleware.UserOnly(), deviceHandler.Bind)
+			devices.POST("/:uuid/unbind", authMiddleware.UserOnly(), deviceHandler.Unbind)
 
-			// 需要权限控制的设备操作
-			devices.Use(authMiddleware.AdminOnly())
-			{
-				devices.GET("/", deviceHandler.List)
-				devices.GET("/:uuid", deviceHandler.Retrieve)
-				devices.POST("/", deviceHandler.Create)
-				devices.PUT("/:uuid", deviceHandler.Update)
-				devices.DELETE("/:uuid", deviceHandler.Destroy)
-			}
+			// 只允许管理员访问
+			devices.GET("/", authMiddleware.AdminOnly(), deviceHandler.List)
+			devices.GET("/:uuid", authMiddleware.AdminOnly(), deviceHandler.Retrieve)
+			devices.POST("/", authMiddleware.AdminOnly(), deviceHandler.Create)
+			devices.PUT("/:uuid", authMiddleware.AdminOnly(), deviceHandler.Update)
+			devices.DELETE("/:uuid", authMiddleware.AdminOnly(), deviceHandler.Destroy)
 		}
 
 		users := apiRouter.Group("/users")
-		users.Use(authMiddleware.AuthRequired())
 		{
-			users.GET("/my_profile", userHandler.MyProfile)
-			users.Use(authMiddleware.AdminOnly())
-			{
-				users.GET("/", userHandler.List)
-				users.GET("/:uuid", userHandler.Retrieve)
-				users.PUT("/:uuid", userHandler.Update)
-				users.DELETE("/:uuid", userHandler.Destroy)
-			}
+			// 只允许普通用户访问
+			users.GET("/my_profile", authMiddleware.UserOnly(), userHandler.MyProfile)
+
+			// 只允许管理员访问
+			users.GET("/", authMiddleware.AdminOnly(), userHandler.List)
+			users.GET("/:uuid", authMiddleware.AdminOnly(), userHandler.Retrieve)
+			users.DELETE("/:uuid", authMiddleware.AdminOnly(), userHandler.Destroy)
 		}
 
 		data := apiRouter.Group("/data")
 		{
 			data.POST("/upload", dataHandler.Upload)
-			data.Use(authMiddleware.AuthRequired())
+			data.Use(authMiddleware.UserOnly())
 			{
 
 			}

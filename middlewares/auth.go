@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"log"
 	"ssat_backend_rebuild/models"
 	"ssat_backend_rebuild/utils"
 	"time"
@@ -60,13 +61,17 @@ func (m *AuthMiddleware) validateToken(c *gin.Context, tokenStr string, model in
 }
 
 // 验证用户是否已登录
-func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
+func (m *AuthMiddleware) UserOnly() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := c.Request.Header.Get("Authorization")
 		if tokenStr == "" {
 			utils.Respond(c, nil, utils.ErrUnauthorized)
 			return
 		}
+		if tokenStr[:7] == "Bearer " {
+			tokenStr = tokenStr[7:]
+		}
+		log.Println(tokenStr)
 
 		user := &models.User{}
 		if cached, found := AuthUserCache.Get(tokenStr); found {
@@ -74,6 +79,7 @@ func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 		} else {
 			valid, cacheDuration := m.validateToken(c, tokenStr, user, "ssat_user")
 			if !valid {
+				utils.Respond(c, nil, utils.ErrInvalidJWT)
 				return
 			}
 			AuthUserCache.Set(tokenStr, user, cacheDuration)
@@ -91,6 +97,9 @@ func (m *AuthMiddleware) AdminOnly() gin.HandlerFunc {
 		if tokenStr == "" {
 			utils.Respond(c, nil, utils.ErrUnauthorized)
 			return
+		}
+		if tokenStr[:7] == "Bearer " {
+			tokenStr = tokenStr[7:]
 		}
 
 		admin := &models.Admin{}

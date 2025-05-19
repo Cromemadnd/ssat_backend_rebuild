@@ -29,15 +29,7 @@ func (h *UserHandler) Retrieve(c *gin.Context) {
 
 func (h *UserHandler) List(c *gin.Context) {
 	h.BaseHandler.List(
-		[]string{"uuid", "username", "is_admin"},
-		nil,
-	)(c)
-}
-
-func (h *UserHandler) Update(c *gin.Context) {
-	h.BaseHandler.Update(
-		[]string{"username", "is_admin"},
-		nil,
+		[]string{"uuid", "wechat_id"},
 		nil,
 	)(c)
 }

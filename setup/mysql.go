@@ -1,6 +1,8 @@
 package setup
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"ssat_backend_rebuild/models"
@@ -59,7 +61,7 @@ func connectSQL(config SQLConfig) (*gorm.DB, error) {
 	return db, nil
 }
 
-func SetupSQL(config SQLConfig) *gorm.DB {
+func SetupSQL(config SQLConfig, admins []AdminEntry) *gorm.DB {
 	db, err := connectSQL(config)
 	if err != nil {
 		log.Fatalf("数据库连接失败: %v", err)
@@ -84,6 +86,21 @@ func SetupSQL(config SQLConfig) *gorm.DB {
 	if err != nil {
 		log.Fatalf("数据库迁移失败: %v", err)
 		return nil
+	}
+
+	for _, admin := range admins {
+		var exist models.Admin
+		if err := db.Where("username = ?", admin.Username).First(&exist).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				hash := md5.Sum([]byte(admin.Password))
+				hashedPassword := hex.EncodeToString(hash[:])
+				db.Create(&models.Admin{
+					Username:       admin.Username,
+					HashedPassword: hashedPassword,
+				})
+				log.Printf("已初始化管理员账号: %s", admin.Username)
+			}
+		}
 	}
 
 	return db

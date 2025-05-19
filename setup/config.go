@@ -32,11 +32,17 @@ type WechatConfig struct {
 	Secret string `json:"secret"`
 }
 
+type AdminEntry struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 type Config struct {
 	SQLConfig    SQLConfig    `json:"mysql"`
 	MongoConfig  MongoConfig  `json:"mongodb"`
 	JWTConfig    JWTConfig    `json:"jwt"`
 	WechatConfig WechatConfig `json:"wechat"`
+	AdminsConfig []AdminEntry `json:"admins"`
 	ServerAddr   string       `json:"server_addr"`
 }
 

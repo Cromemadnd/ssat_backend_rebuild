@@ -11,7 +11,7 @@ import (
 func main() {
 	// 连接数据库
 	myConfig := setup.LoadConfig()
-	db := setup.SetupSQL(myConfig.SQLConfig)
+	db := setup.SetupSQL(myConfig.SQLConfig, myConfig.AdminsConfig)
 	dbMongo := setup.SetupMongo(myConfig.MongoConfig)
 
 	// 设置Gin

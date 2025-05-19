@@ -9,7 +9,7 @@ import (
 
 type Device struct {
 	DeviceID     string     `json:"device_id" gorm:"type:char(16)"`
-	Secret       string     `json:"-" gorm:"type:char(16)"`
+	Secret       string     `json:"-" gorm:"type:char(255)"`
 	Status       int        `json:"status" gorm:"type:int;default:0"`
 	LastReceived *time.Time `json:"last_received" gorm:"null"`
 	OwnerID      *uuid.UUID `json:"-" gorm:"type:char(36);null"`
