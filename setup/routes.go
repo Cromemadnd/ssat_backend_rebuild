@@ -33,8 +33,9 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 		BaseHandler: handlers.BaseHandler[models.User]{DB: db},
 	}
 	dataHandler := &handlers.DataHandler{
-		MongoCollection: dbMongo,
-		BaseHandler:     handlers.BaseHandler[models.Data]{DB: db},
+		MongoCollection:     dbMongo,
+		MongoToSQLThreshold: config.MongoToSQLThreshold,
+		BaseHandler:         handlers.BaseHandler[models.Data]{DB: db},
 	}
 
 	// userHandler := &handlers.BaseHandler[models.User]{DB: db}

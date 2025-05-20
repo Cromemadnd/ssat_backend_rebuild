@@ -38,12 +38,13 @@ type AdminEntry struct {
 }
 
 type Config struct {
-	SQLConfig    SQLConfig    `json:"mysql"`
-	MongoConfig  MongoConfig  `json:"mongodb"`
-	JWTConfig    JWTConfig    `json:"jwt"`
-	WechatConfig WechatConfig `json:"wechat"`
-	AdminsConfig []AdminEntry `json:"admins"`
-	ServerAddr   string       `json:"server_addr"`
+	SQLConfig           SQLConfig    `json:"mysql"`
+	MongoConfig         MongoConfig  `json:"mongodb"`
+	JWTConfig           JWTConfig    `json:"jwt"`
+	WechatConfig        WechatConfig `json:"wechat"`
+	AdminsConfig        []AdminEntry `json:"admins"`
+	MongoToSQLThreshold int          `json:"mongo_to_sql_threshold"`
+	ServerAddr          string       `json:"server_addr"`
 }
 
 func LoadConfig() Config {

@@ -27,5 +27,6 @@
       "password": "123456"
     }
   ],
+  "mongo_to_sql_threshold": 10,
   "server_addr": ":5000"
 }

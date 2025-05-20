@@ -16,9 +16,9 @@ type DataEntry struct {
 type Data struct {
 	MyDeviceID string    `json:"device_id" gorm:"type:char(16)"`
 	MyDevice   *Device   `json:"my_device" gorm:"foreignKey:MyDeviceID"`
-	Avg        DataEntry `json:"avg" gorm:"embedded"`
-	Var        DataEntry `json:"var" gorm:"embedded"`
-	Min        DataEntry `json:"min" gorm:"embedded"`
-	Max        DataEntry `json:"max" gorm:"embedded"`
+	Avg        DataEntry `json:"avg" gorm:"embedded;embeddedPrefix:avg_"`
+	Var        DataEntry `json:"var" gorm:"embedded;embeddedPrefix:var_"`
+	Min        DataEntry `json:"min" gorm:"embedded;embeddedPrefix:min_"`
+	Max        DataEntry `json:"max" gorm:"embedded;embeddedPrefix:max_"`
 	BaseModel
 }
