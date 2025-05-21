@@ -50,45 +50,46 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 		DB:        db,
 		JWTSecret: config.JWTConfig.Secret,
 	}
+	logMiddleware := &middlewares.LogMiddleware{DB: db}
 
 	apiRouter := router.Group("/")
 	{
 		auth := apiRouter.Group("/auth")
 		{
-			auth.POST("/login", authHandler.AdminLogin)
-			auth.POST("/wechat_login", authHandler.WechatLogin)
+			auth.POST("/login", logMiddleware.WithLogging(2), authHandler.AdminLogin)
+			auth.POST("/wechat_login", logMiddleware.WithLogging(1), authHandler.WechatLogin)
 		}
 
 		devices := apiRouter.Group("/devices")
 		{
 			// 只允许普通用户访问
-			devices.GET("/my_devices", authMiddleware.UserOnly(), deviceHandler.MyDevices)
-			devices.GET("/my_devices/:uuid", authMiddleware.UserOnly(), deviceHandler.RetrieveMyDevice)
-			devices.POST("/:uuid/bind", authMiddleware.UserOnly(), deviceHandler.Bind)
-			devices.POST("/:uuid/unbind", authMiddleware.UserOnly(), deviceHandler.Unbind)
+			devices.GET("/my_devices", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.MyDevices)
+			devices.GET("/my_devices/:uuid", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.RetrieveMyDevice)
+			devices.POST("/:uuid/bind", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.Bind)
+			devices.POST("/:uuid/unbind", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.Unbind)
 
 			// 只允许管理员访问
-			devices.GET("/", authMiddleware.AdminOnly(), deviceHandler.List)
-			devices.GET("/:uuid", authMiddleware.AdminOnly(), deviceHandler.Retrieve)
-			devices.POST("/", authMiddleware.AdminOnly(), deviceHandler.Create)
-			devices.PUT("/:uuid", authMiddleware.AdminOnly(), deviceHandler.Update)
-			devices.DELETE("/:uuid", authMiddleware.AdminOnly(), deviceHandler.Destroy)
+			devices.GET("/", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.List)
+			devices.GET("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.Retrieve)
+			devices.POST("/", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.Create)
+			devices.PUT("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.Update)
+			devices.DELETE("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.Destroy)
 		}
 
 		users := apiRouter.Group("/users")
 		{
 			// 只允许普通用户访问
-			users.GET("/my_profile", authMiddleware.UserOnly(), userHandler.MyProfile)
+			users.GET("/my_profile", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), userHandler.MyProfile)
 
 			// 只允许管理员访问
-			users.GET("/", authMiddleware.AdminOnly(), userHandler.List)
-			users.GET("/:uuid", authMiddleware.AdminOnly(), userHandler.Retrieve)
-			users.DELETE("/:uuid", authMiddleware.AdminOnly(), userHandler.Destroy)
+			users.GET("/", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), userHandler.List)
+			users.GET("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), userHandler.Retrieve)
+			users.DELETE("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), userHandler.Destroy)
 		}
 
 		data := apiRouter.Group("/data")
 		{
-			data.POST("/upload", dataHandler.Upload)
+			data.POST("/upload", logMiddleware.WithLogging(0), dataHandler.Upload)
 			data.Use(authMiddleware.UserOnly())
 			{
 

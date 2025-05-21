@@ -109,6 +109,7 @@ func (h *DataHandler) Upload(c *gin.Context) {
 		utils.Respond(c, nil, utils.ErrUnknownDevice)
 		return
 	}
+	c.Set("CurrentDevice", device)
 
 	// 校验时间戳
 	if time.Since(time.Unix(reqBody.Timestamp, 0)) > time.Minute {

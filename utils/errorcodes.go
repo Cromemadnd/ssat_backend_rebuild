@@ -1,9 +1,9 @@
 package utils
 
 type ErrorCode struct {
-	Code     int
-	HttpCode int
-	Message  string
+	Code     int    `json:"code"`
+	HttpCode int    `json:"http_code"`
+	Message  string `json:"message"`
 }
 
 func (e ErrorCode) Error() string {
