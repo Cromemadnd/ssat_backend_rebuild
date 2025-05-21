@@ -37,6 +37,9 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 		MongoToSQLThreshold: config.MongoToSQLThreshold,
 		BaseHandler:         handlers.BaseHandler[models.Data]{DB: db},
 	}
+	
+	// 初始化分析处理器
+	analysisHandler := handlers.NewAnalysisHandler(db, dbMongo)
 
 	// userHandler := &handlers.BaseHandler[models.User]{DB: db}
 	authHandler := &handlers.AuthHandler{
@@ -92,7 +95,10 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 			data.POST("/upload", logMiddleware.WithLogging(0), dataHandler.Upload)
 			data.Use(authMiddleware.UserOnly())
 			{
-
+				// 数据分析API
+				data.GET("/analyse", analysisHandler.Analyse)
+				// 清除设备缓存
+				data.DELETE("/cache/:device_id", authMiddleware.AdminOnly(), analysisHandler.ClearCache)
 			}
 		}
 	}
