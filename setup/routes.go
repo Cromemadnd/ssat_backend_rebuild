@@ -66,14 +66,14 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 		devices := apiRouter.Group("/devices")
 		{
 			// 只允许普通用户访问
-			devices.GET("/my_devices", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.MyDevices)
-			devices.GET("/my_devices/:uuid", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.RetrieveMyDevice)
+			devices.GET("/my_devices", authMiddleware.UserOnly(), deviceHandler.MyDevices)
+			devices.GET("/my_devices/:uuid", authMiddleware.UserOnly(), deviceHandler.RetrieveMyDevice)
 			devices.POST("/:uuid/bind", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.Bind)
 			devices.POST("/:uuid/unbind", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.Unbind)
 
 			// 只允许管理员访问
-			devices.GET("/", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.List)
-			devices.GET("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.Retrieve)
+			devices.GET("/", authMiddleware.AdminOnly(), deviceHandler.List)
+			devices.GET("/:uuid", authMiddleware.AdminOnly(), deviceHandler.Retrieve)
 			devices.POST("/", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.Create)
 			devices.PUT("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.Update)
 			devices.DELETE("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), deviceHandler.Destroy)
@@ -82,11 +82,11 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 		users := apiRouter.Group("/users")
 		{
 			// 只允许普通用户访问
-			users.GET("/my_profile", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), userHandler.MyProfile)
+			users.GET("/my_profile", authMiddleware.UserOnly(), userHandler.MyProfile)
 
 			// 只允许管理员访问
-			users.GET("/", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), userHandler.List)
-			users.GET("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), userHandler.Retrieve)
+			users.GET("/", authMiddleware.AdminOnly(), userHandler.List)
+			users.GET("/:uuid", authMiddleware.AdminOnly(), userHandler.Retrieve)
 			users.DELETE("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), userHandler.Destroy)
 		}
 
@@ -94,13 +94,13 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 		{
 			data.POST("/upload", logMiddleware.WithLogging(0), dataHandler.Upload)
 
-			data.GET("/", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), dataHandler.List)
+			data.GET("/", authMiddleware.AdminOnly(), dataHandler.List)
 		}
 
 		logs := apiRouter.Group("/logs")
 		{
-			logs.GET("/", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), logHandler.List)
-			logs.GET("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), logHandler.Retrieve)
+			logs.GET("/", authMiddleware.AdminOnly(), logHandler.List)
+			// logs.GET("/:uuid", authMiddleware.AdminOnly(), logHandler.Retrieve)
 		}
 	}
 }

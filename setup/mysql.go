@@ -27,7 +27,7 @@ func connectSQL(config SQLConfig) (*gorm.DB, error) {
 
 	// 检查并创建数据库
 	createDBQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s CHARACTER SET %s", config.DBName, config.Charset)
-	if err := db.Exec(createDBQuery).Error; err != nil {
+	if err = db.Exec(createDBQuery).Error; err != nil {
 		return nil, err
 	}
 

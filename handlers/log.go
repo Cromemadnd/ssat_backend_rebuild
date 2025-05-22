@@ -14,16 +14,24 @@ type LogHandler struct {
 // 日志列表（可分页、可按条件筛选，简单版）
 func (h *LogHandler) List(c *gin.Context) {
 	h.BaseHandler.List(
-		[]string{"uuid", "log_type", "subject", "created_at", "path"},
+		nil,
 		func(c *gin.Context, query *gorm.DB) *gorm.DB {
 			logType := c.Query("log_type")
 			subject := c.Query("subject")
+			before := c.Query("before")
+			after := c.Query("after")
 
 			if logType != "" {
 				query = query.Where("log_type = ?", logType)
 			}
 			if subject != "" {
 				query = query.Where("subject = ?", subject)
+			}
+			if before != "" {
+				query = query.Where("created_at < ?", before)
+			}
+			if after != "" {
+				query = query.Where("created_at > ?", after)
 			}
 			return query
 		},

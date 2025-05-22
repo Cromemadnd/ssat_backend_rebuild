@@ -212,7 +212,19 @@ func (h *DataHandler) List(c *gin.Context) {
 		nil,
 		func(c *gin.Context, query *gorm.DB) *gorm.DB {
 			// 通过设备ID查询数据
-			query = query.Where("my_device_id = ?", c.Query("device_id"))
+			deviceId := c.Query("device_id")
+			before := c.Query("before")
+			after := c.Query("after")
+
+			if deviceId != "" {
+				query = query.Where("my_device_id = ?", deviceId)
+			}
+			if before != "" {
+				query = query.Where("created_at < ?", before)
+			}
+			if after != "" {
+				query = query.Where("created_at > ?", after)
+			}
 			return query
 		},
 	)(c)
