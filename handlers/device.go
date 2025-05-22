@@ -43,7 +43,7 @@ func (h *DeviceHandler) Retrieve(c *gin.Context) {
 
 func (h *DeviceHandler) List(c *gin.Context) {
 	h.BaseHandler.List(
-		[]string{"uuid", "device_id", "status"},
+		[]string{"uuid", "device_id", "status", "last_received"},
 		nil,
 	)(c)
 }

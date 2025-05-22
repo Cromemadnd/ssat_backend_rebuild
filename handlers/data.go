@@ -13,19 +13,13 @@ import (
 	"github.com/patrickmn/go-cache"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"gorm.io/gorm"
 )
 
 type DataHandler struct {
 	MongoCollection     *mongo.Collection
 	MongoToSQLThreshold int
 	BaseHandler[models.Data]
-}
-
-func (h *DataHandler) List(c *gin.Context) {
-	h.BaseHandler.List(
-		nil,
-		nil,
-	)(c)
 }
 
 type DataUploadRequest struct {
@@ -150,7 +144,7 @@ func (h *DataHandler) Upload(c *gin.Context) {
 		utils.Respond(c, nil, utils.ErrInternalServer)
 		return
 	}
-	log.Println(count)
+	// log.Println(count)
 
 	if count >= int64(h.MongoToSQLThreshold) {
 		log.Println("数据超过阈值，开始处理")
@@ -201,5 +195,25 @@ func (h *DataHandler) Upload(c *gin.Context) {
 	// 	utils.Respond(c, nil, utils.ErrInternalServer)
 	// 	return
 	// }
+
+	// 更新设备的最后接收时间
+	*device.LastReceived = time.Now()
+	if err := h.DB.Save(device).Error; err != nil {
+		utils.Respond(c, nil, utils.ErrInternalServer)
+		return
+	}
+	log.Println(device)
+
 	utils.Respond(c, nil, utils.ErrOK)
+}
+
+func (h *DataHandler) List(c *gin.Context) {
+	h.BaseHandler.List(
+		nil,
+		func(c *gin.Context, query *gorm.DB) *gorm.DB {
+			// 通过设备ID查询数据
+			query = query.Where("my_device_id = ?", c.Query("device_id"))
+			return query
+		},
+	)(c)
 }
