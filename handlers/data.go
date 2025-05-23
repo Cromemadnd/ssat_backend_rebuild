@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"ssat_backend_rebuild/models"
 	"ssat_backend_rebuild/utils"
 	"time"
@@ -19,6 +22,8 @@ import (
 type DataHandler struct {
 	MongoCollection     *mongo.Collection
 	MongoToSQLThreshold int
+	AiApiUrl            string
+	AiApiKey            string
 	BaseHandler[models.Data]
 }
 
@@ -37,6 +42,7 @@ type MongoData struct {
 }
 
 var DataCache = cache.New(5*time.Minute, 10*time.Minute)
+var deviceTimers = make(map[string]*time.Timer)
 
 // 计算最大值、最小值、平均值、方差
 func CalcStats(data []float32) (max, min, avg, variance float32) {
@@ -197,12 +203,24 @@ func (h *DataHandler) Upload(c *gin.Context) {
 	// }
 
 	// 更新设备的最后接收时间
-	*device.LastReceived = time.Now()
+	now := time.Now()
+	device.LastReceived = &now
+
+	// 更新设备的状态
+	device.Status = 1
+	deviceID := device.DeviceID
+	if timer, ok := deviceTimers[deviceID]; ok {
+		timer.Stop() // 停止旧定时器
+	}
+	deviceTimers[deviceID] = time.AfterFunc(time.Minute, func() {
+		// 1分钟后执行
+		h.DB.Model(&models.Device{}).Where("device_id = ?", deviceID).Update("status", 0)
+	})
+
 	if err := h.DB.Save(device).Error; err != nil {
 		utils.Respond(c, nil, utils.ErrInternalServer)
 		return
 	}
-	log.Println(device)
 
 	utils.Respond(c, nil, utils.ErrOK)
 }
@@ -228,4 +246,149 @@ func (h *DataHandler) List(c *gin.Context) {
 			return query
 		},
 	)(c)
+}
+
+type DataAnalysisRequest struct {
+	DeviceID  string `json:"device_id" binding:"required"`   // 设备id
+	Type      string `json:"report_type" binding:"required"` // 分析类型
+	StartTime string `json:"start_time" binding:"required"`  // 开始时间（ISO8601格式）
+	EndTime   string `json:"end_time" binding:"required"`    // 结束时间（ISO8601格式）
+	Model     string `json:"model" binding:"required"`       // 使用的模型
+}
+
+func getAIPrompt(req DataAnalysisRequest, dataList []models.Data) string {
+	// 多段统计摘要
+	summary := "本时段各统计段数据如下(每一项数据中的四个数据点分别代表平均值、方差、最小值、最大值)\n"
+	for i, data := range dataList {
+		avg := data.Avg
+		variance := data.Var
+		min := data.Min
+		max := data.Max
+		summary += fmt.Sprintf(
+			"#%d 温度[%.2f,%.2f,%.2f,%.2f] 湿度[%.2f,%.2f,%.2f,%.2f] 新风[%.2f,%.2f,%.2f,%.2f] 臭氧[%.2f,%.2f,%.2f,%.2f] 二氧化氮[%.2f,%.2f,%.2f,%.2f] 甲醛[%.2f,%.2f,%.2f,%.2f] PM2.5[%.2f,%.2f,%.2f,%.2f] 一氧化碳[%.2f,%.2f,%.2f,%.2f] 细菌[%.2f,%.2f,%.2f,%.2f] 氡气[%.2f,%.2f,%.2f,%.2f];",
+			i+1,
+			avg.Temperature, variance.Temperature, min.Temperature, max.Temperature,
+			avg.Humidity, variance.Humidity, min.Humidity, max.Humidity,
+			avg.FreshAir, variance.FreshAir, min.FreshAir, max.FreshAir,
+			avg.Ozone, variance.Ozone, min.Ozone, max.Ozone,
+			avg.NitroDio, variance.NitroDio, min.NitroDio, max.NitroDio,
+			avg.Methanal, variance.Methanal, min.Methanal, max.Methanal,
+			avg.Pm25, variance.Pm25, min.Pm25, max.Pm25,
+			avg.CarbMomo, variance.CarbMomo, min.CarbMomo, max.CarbMomo,
+			avg.Bacteria, variance.Bacteria, min.Bacteria, max.Bacteria,
+			avg.Radon, variance.Radon, min.Radon, max.Radon,
+		)
+	}
+
+	switch req.Type {
+	case "0":
+		return fmt.Sprintf(
+			"请作为环境数据分析专家，针对以下统计数据：\n%s\n请对这些统计数据进行简单分析，归纳主要特征（如均值、极值、波动等），并给出简明结论。",
+			summary)
+	case "1":
+		return fmt.Sprintf(
+			"请作为环境异常检测专家，针对以下统计数据：\n%s\n请对这些统计数据进行异常监测，指出是否存在异常数据点或异常趋势，并简要说明可能的原因。",
+			summary)
+	case "2":
+		return fmt.Sprintf(
+			"请作为环境趋势预测专家，针对以下统计数据：\n%s\n请分析主要数据的变化趋势，并预测未来一段时间内的走势。请给出趋势判断和预测依据。",
+			summary)
+	case "3":
+		return fmt.Sprintf(
+			"请作为环境数据综合分析专家，针对以下统计数据：\n%s\n请进行综合分析，包括数据特征总结、异常检测、趋势预测等内容，给出详细的分析报告和建议。",
+			summary)
+	default:
+		return "请提供有效的分析类型。"
+	}
+}
+
+func (h *DataHandler) Analysis(c *gin.Context) {
+	var req DataAnalysisRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Respond(c, nil, utils.ErrMissingParam)
+		return
+	}
+
+	// 构建查询条件
+	query := h.DB.Model(&models.Data{})
+	query = query.Where("my_device_id = ?", req.DeviceID)
+	query = query.Where("created_at > ?", req.StartTime)
+	query = query.Where("created_at < ?", req.EndTime)
+
+	// 查询数据
+	var dataList []models.Data
+	if err := query.Find(&dataList).Error; err != nil {
+		log.Println("解析响应失败：", err)
+		utils.Respond(c, nil, utils.ErrInternalServer)
+		return
+	}
+	if len(dataList) == 0 {
+		utils.Respond(c, nil, utils.ErrNoData)
+		return
+	}
+
+	// 生成分析提示
+	prompt := getAIPrompt(req, dataList)
+	aiReq := map[string]interface{}{
+		"messages": []map[string]interface{}{
+			{
+				"role":    "system",
+				"content": prompt,
+			},
+		},
+		"model": req.Model,
+	}
+	body, _ := json.Marshal(aiReq)
+
+	reqHttp, err := http.NewRequest("POST", h.AiApiUrl, bytes.NewReader(body))
+	if err != nil {
+		log.Println("解析响应失败：", err)
+		utils.Respond(c, nil, utils.ErrExternalService)
+		return
+	}
+	reqHttp.Header.Set("Content-Type", "application/json")
+	reqHttp.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.AiApiKey))
+	log.Println("请求头：", reqHttp.Header)
+	log.Println("请求体：", string(body))
+
+	resp, err := http.DefaultClient.Do(reqHttp)
+	if err != nil {
+		utils.Respond(c, nil, utils.ErrExternalService)
+		return
+	}
+	defer resp.Body.Close()
+
+	var aiResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&aiResp); err != nil {
+		utils.Respond(c, nil, utils.ErrInternalServer)
+		return
+	}
+
+	// 解析响应
+	choices, ok := aiResp["choices"].([]interface{})
+	if !ok || len(choices) == 0 {
+		utils.Respond(c, aiResp, utils.ErrExternalService)
+		return
+	}
+	choiceMap, ok := choices[0].(map[string]interface{})
+	if !ok {
+		utils.Respond(c, aiResp, utils.ErrExternalService)
+		return
+	}
+	message, ok := choiceMap["message"].(map[string]interface{})
+	if !ok {
+		utils.Respond(c, aiResp, utils.ErrExternalService)
+		return
+	}
+	content, ok := message["content"].(string)
+	if !ok {
+		utils.Respond(c, aiResp, utils.ErrExternalService)
+		return
+	}
+	log.Println("AI响应：", content)
+
+	utils.Respond(c, gin.H{
+		"detail":     content,
+		"data_count": len(dataList),
+	}, utils.ErrOK)
 }

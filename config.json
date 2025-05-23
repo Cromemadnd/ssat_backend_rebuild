@@ -28,5 +28,7 @@
     }
   ],
   "mongo_to_sql_threshold": 10,
+  "ai_api_url": "https://api.chatanywhere.tech/v1/chat/completions",
+  "ai_api_key": "sk-g380TgRTNFbzFANVBiuLqWJd50vtnuAExvvD9DGuAAmGSCtL",
   "server_addr": ":5000"
 }

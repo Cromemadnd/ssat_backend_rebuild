@@ -35,6 +35,8 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 	dataHandler := &handlers.DataHandler{
 		MongoCollection:     dbMongo,
 		MongoToSQLThreshold: config.MongoToSQLThreshold,
+		AiApiUrl:            config.AiApiUrl,
+		AiApiKey:            config.AiApiKey,
 		BaseHandler:         handlers.BaseHandler[models.Data]{DB: db},
 	}
 	logHandler := &handlers.LogHandler{
@@ -95,6 +97,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 			data.POST("/upload", logMiddleware.WithLogging(0), dataHandler.Upload)
 
 			data.GET("/", authMiddleware.AdminOnly(), dataHandler.List)
+			data.POST("/analysis", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), dataHandler.Analysis)
 		}
 
 		logs := apiRouter.Group("/logs")

@@ -44,6 +44,8 @@ type Config struct {
 	WechatConfig        WechatConfig `json:"wechat"`
 	AdminsConfig        []AdminEntry `json:"admins"`
 	MongoToSQLThreshold int          `json:"mongo_to_sql_threshold"`
+	AiApiUrl            string       `json:"ai_api_url"`
+	AiApiKey            string       `json:"ai_api_key"`
 	ServerAddr          string       `json:"server_addr"`
 }
 
