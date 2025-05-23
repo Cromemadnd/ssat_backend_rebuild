@@ -48,11 +48,14 @@ func (h *AuthHandler) AdminLogin(c *gin.Context) {
 		return
 	}
 
+	// 暂时将过期时间设置为1分钟（60秒）
+	expiresIn := 60
+
 	claims := &jwt.RegisteredClaims{
 		Issuer:    "ssat_admin",
 		Subject:   user.UUID.String(),
 		NotBefore: jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(h.JWTExpires) * time.Second)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expiresIn) * time.Second)),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
@@ -116,11 +119,14 @@ func (h *AuthHandler) WechatLogin(c *gin.Context) {
 	}
 
 	// 3. 生成JWT
+	// 暂时将过期时间设置为1分钟（60秒）
+	expiresIn := 60
+
 	claims := &jwt.RegisteredClaims{
 		Issuer:    "ssat_user",
 		Subject:   user.UUID.String(),
 		NotBefore: jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(h.JWTExpires) * time.Second)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expiresIn) * time.Second)),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString([]byte(h.JWTSecret))
