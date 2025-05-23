@@ -96,6 +96,16 @@ var (
 		HttpCode: 400,
 		Message:  "检测到重放攻击",
 	}
+	ErrNoData = ErrorCode{
+		Code:     16,
+		HttpCode: 404,
+		Message:  "该设备在这个时段没有数据",
+	}
+	ErrExternalService = ErrorCode{
+		Code:     17,
+		HttpCode: 500,
+		Message:  "外部服务错误",
+	}
 	ErrForbidden = ErrorCode{
 		Code:     1001,
 		HttpCode: 403,
