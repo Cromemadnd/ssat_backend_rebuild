@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"ssat_backend_rebuild/utils"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -135,6 +137,26 @@ func (h *BaseHandler[T]) List(
 			query = filterFn(c, query)
 		}
 
+		// 计算总数
+		var total int64
+		query.Count(&total)
+
+		// 处理分页参数
+		page := c.Query("page")
+		pageSize := c.Query("page_size")
+		log.Println(page, pageSize)
+		pageNum, err := strconv.Atoi(page)
+		if err != nil || pageNum < 1 {
+			pageNum = 1
+		}
+		pageSizeNum, err := strconv.Atoi(pageSize)
+		if err != nil || pageSizeNum < 1 {
+			pageSizeNum = 10
+		}
+		offset := (pageNum - 1) * pageSizeNum
+		log.Println("pageNum:", pageNum, "pageSizeNum:", pageSizeNum, "offset:", offset)
+		query = query.Offset(offset).Limit(pageSizeNum)
+
 		results, err := h.GetObjects(query)
 		if err != nil {
 			utils.Respond(c, nil, utils.ErrInternalServer)
@@ -145,7 +167,7 @@ func (h *BaseHandler[T]) List(
 		for _, result := range results {
 			resultJson = append(resultJson, StructToJsonMap(result, fields))
 		}
-		utils.Respond(c, resultJson, utils.ErrOK)
+		utils.Respond(c, gin.H{"count": total, "items": resultJson}, utils.ErrOK)
 	}
 }
 
