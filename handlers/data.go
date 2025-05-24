@@ -348,8 +348,8 @@ func (h *DataHandler) Analysis(c *gin.Context) {
 	}
 	reqHttp.Header.Set("Content-Type", "application/json")
 	reqHttp.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.AiApiKey))
-	log.Println("请求头：", reqHttp.Header)
-	log.Println("请求体：", string(body))
+	// log.Println("请求头：", reqHttp.Header)
+	// log.Println("请求体：", string(body))
 
 	resp, err := http.DefaultClient.Do(reqHttp)
 	if err != nil {
@@ -385,7 +385,7 @@ func (h *DataHandler) Analysis(c *gin.Context) {
 		utils.Respond(c, aiResp, utils.ErrExternalService)
 		return
 	}
-	log.Println("AI响应：", content)
+	// log.Println("AI响应：", content)
 
 	utils.Respond(c, gin.H{
 		"detail":     content,
