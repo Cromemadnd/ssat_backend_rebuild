@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"ssat_backend_rebuild/models"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -27,10 +28,10 @@ func (h *LogHandler) List(c *gin.Context) {
 			if subject != "" {
 				query = query.Where("subject = ?", subject)
 			}
-			if before != "" {
+			if before, err := time.Parse(time.RFC3339, before); err == nil {
 				query = query.Where("created_at < ?", before)
 			}
-			if after != "" {
+			if after, err := time.Parse(time.RFC3339, after); err == nil {
 				query = query.Where("created_at > ?", after)
 			}
 			return query

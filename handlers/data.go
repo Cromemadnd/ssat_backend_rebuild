@@ -31,6 +31,8 @@ type DataUploadRequest struct {
 	DeviceID  string           `json:"device_id" binding:"required"`
 	Timestamp int64            `json:"timestamp" binding:"required"`
 	Data      models.DataEntry `json:"data" binding:"required"`
+	Season    string           `json:"season" binding:"required"` // 季节
+	Scene     string           `json:"scene" binding:"required"`  // 场景
 	Signature string           `json:"signature" binding:"required"`
 }
 
@@ -131,6 +133,24 @@ func (h *DataHandler) Upload(c *gin.Context) {
 		return
 	}
 	DataCache.Set(reqBody.Signature, true, 2*time.Minute)
+
+	// 校验数据
+	anomalyResult := CheckDataAnomaly(reqBody.Data, reqBody.Scene, reqBody.Season)
+
+	if !anomalyResult.IsNormal {
+		// log.Printf("检测到异常数据: %v", anomalyResult.AnomalyFields)
+		// log.Printf("异常详情: %v", anomalyResult.AnomalyDetails)
+		utils.Respond(c, gin.H{
+			"anomaly_fields":  anomalyResult.AnomalyFields,
+			"anomaly_details": anomalyResult.AnomalyDetails,
+		}, utils.ErrDataAnomaly)
+		device.Status = 3 // 设置设备状态为异常
+		if err := h.DB.Save(device).Error; err != nil {
+			utils.Respond(c, nil, utils.ErrInternalServer)
+			return
+		}
+		return
+	}
 
 	// 创建数据记录
 	mongoData := MongoData{
@@ -237,10 +257,10 @@ func (h *DataHandler) List(c *gin.Context) {
 			if deviceId != "" {
 				query = query.Where("my_device_id = ?", deviceId)
 			}
-			if before != "" {
+			if before, err := time.Parse(time.RFC3339, before); err == nil {
 				query = query.Where("created_at < ?", before)
 			}
-			if after != "" {
+			if after, err := time.Parse(time.RFC3339, after); err == nil {
 				query = query.Where("created_at > ?", after)
 			}
 			return query
@@ -391,4 +411,174 @@ func (h *DataHandler) Analysis(c *gin.Context) {
 		"detail":     content,
 		"data_count": len(dataList),
 	}, utils.ErrOK)
+}
+
+// 场景和季节的数据范围定义
+type DataRange struct {
+	Min float32
+	Max float32
+}
+
+type SeasonData struct {
+	Temperature DataRange
+	Humidity    DataRange
+	FreshAir    DataRange
+	Ozone       DataRange
+	NitroDio    DataRange
+	Methanal    DataRange
+	Pm25        DataRange
+	CarbMomo    DataRange
+	Bacteria    DataRange
+	Radon       DataRange
+}
+
+type SceneConfig map[string]map[string]SeasonData
+
+var SCENES = SceneConfig{
+	"family": {
+		"winter": SeasonData{
+			Temperature: DataRange{16, 22},
+			Humidity:    DataRange{30, 50},
+			FreshAir:    DataRange{0.5, 1.0},
+			Ozone:       DataRange{0.019, 0.031},
+			NitroDio:    DataRange{0.017, 0.032},
+			Methanal:    DataRange{0.021, 0.085},
+			Pm25:        DataRange{15.214, 40.032},
+			CarbMomo:    DataRange{0.601, 4.054},
+			Bacteria:    DataRange{120, 800},
+			Radon:       DataRange{1.245, 3.519},
+		},
+		"summer": SeasonData{
+			Temperature: DataRange{24, 28},
+			Humidity:    DataRange{40, 70},
+			FreshAir:    DataRange{1.0, 1.5},
+			Ozone:       DataRange{0.028, 0.054},
+			NitroDio:    DataRange{0.021, 0.051},
+			Methanal:    DataRange{0.032, 0.112},
+			Pm25:        DataRange{10.012, 45.564},
+			CarbMomo:    DataRange{0.512, 3.521},
+			Bacteria:    DataRange{100, 600},
+			Radon:       DataRange{1.065, 3.041},
+		},
+	},
+	"lab": {
+		"winter": SeasonData{
+			Temperature: DataRange{15, 20},
+			Humidity:    DataRange{40, 55},
+			FreshAir:    DataRange{2.0, 3.0},
+			Ozone:       DataRange{0.005, 0.015},
+			NitroDio:    DataRange{0.005, 0.015},
+			Methanal:    DataRange{0.014, 0.049},
+			Pm25:        DataRange{6.140, 15.001},
+			CarbMomo:    DataRange{0.122, 1.575},
+			Bacteria:    DataRange{60, 400},
+			Radon:       DataRange{0.654, 1.525},
+		},
+		"summer": SeasonData{
+			Temperature: DataRange{20, 24},
+			Humidity:    DataRange{45, 60},
+			FreshAir:    DataRange{2.5, 4.0},
+			Ozone:       DataRange{0.018, 0.028},
+			NitroDio:    DataRange{0.017, 0.028},
+			Methanal:    DataRange{0.014, 0.055},
+			Pm25:        DataRange{5.235, 18.002},
+			CarbMomo:    DataRange{0.185, 1.810},
+			Bacteria:    DataRange{50, 350},
+			Radon:       DataRange{0.540, 1.800},
+		},
+	},
+	"greenhouse": {
+		"winter": SeasonData{
+			Temperature: DataRange{15, 25},
+			Humidity:    DataRange{45, 75},
+			FreshAir:    DataRange{1.0, 2.0},
+			Ozone:       DataRange{0.015, 0.034},
+			NitroDio:    DataRange{0.019, 0.031},
+			Methanal:    DataRange{0.010, 0.041},
+			Pm25:        DataRange{12.201, 35.203},
+			CarbMomo:    DataRange{0.201, 2.530},
+			Bacteria:    DataRange{120, 700},
+			Radon:       DataRange{0.650, 2.510},
+		},
+		"summer": SeasonData{
+			Temperature: DataRange{20, 30},
+			Humidity:    DataRange{50, 80},
+			FreshAir:    DataRange{1.5, 3.0},
+			Ozone:       DataRange{0.011, 0.041},
+			NitroDio:    DataRange{0.019, 0.041},
+			Methanal:    DataRange{0.015, 0.052},
+			Pm25:        DataRange{10.325, 38.914},
+			CarbMomo:    DataRange{0.284, 2.857},
+			Bacteria:    DataRange{100, 750},
+			Radon:       DataRange{0.549, 2.875},
+		},
+	},
+}
+
+// 检查单个数值是否在范围内
+func isInRange(value float32, dataRange DataRange) bool {
+	return value >= dataRange.Min && value <= dataRange.Max
+}
+
+// 异常检测结果
+type AnomalyResult struct {
+	IsNormal       bool              `json:"is_normal"`
+	AnomalyFields  []string          `json:"anomaly_fields"`
+	AnomalyDetails map[string]string `json:"anomaly_details"`
+}
+
+// 判断数据是否正常的函数
+func CheckDataAnomaly(data models.DataEntry, scene, season string) AnomalyResult {
+	result := AnomalyResult{
+		IsNormal:       true,
+		AnomalyFields:  []string{},
+		AnomalyDetails: make(map[string]string),
+	}
+
+	// 检查场景和季节是否存在
+	sceneData, exists := SCENES[scene]
+	if !exists {
+		result.IsNormal = false
+		result.AnomalyFields = append(result.AnomalyFields, "scene")
+		result.AnomalyDetails["scene"] = "未知场景类型"
+		return result
+	}
+
+	seasonData, exists := sceneData[season]
+	if !exists {
+		result.IsNormal = false
+		result.AnomalyFields = append(result.AnomalyFields, "season")
+		result.AnomalyDetails["season"] = "未知季节类型"
+		return result
+	}
+
+	// 检查各项数据是否在正常范围内
+	checks := map[string]struct {
+		value  float32
+		range_ DataRange
+	}{
+		"temperature": {data.Temperature, seasonData.Temperature},
+		"humidity":    {data.Humidity, seasonData.Humidity},
+		"fresh_air":   {data.FreshAir, seasonData.FreshAir},
+		"ozone":       {data.Ozone, seasonData.Ozone},
+		"nitro_dio":   {data.NitroDio, seasonData.NitroDio},
+		"methanal":    {data.Methanal, seasonData.Methanal},
+		"pm2_5":       {data.Pm25, seasonData.Pm25},
+		"carb_momo":   {data.CarbMomo, seasonData.CarbMomo},
+		"bacteria":    {data.Bacteria, seasonData.Bacteria},
+		"radon":       {data.Radon, seasonData.Radon},
+	}
+
+	for fieldName, check := range checks {
+		if !isInRange(check.value, check.range_) {
+			result.IsNormal = false
+			result.AnomalyFields = append(result.AnomalyFields, fieldName)
+			result.AnomalyDetails[fieldName] = fmt.Sprintf(
+				"数值%.3f超出正常范围[%.3f, %.3f]",
+				check.value, check.range_.Min, check.range_.Max,
+			)
+		}
+	}
+
+	return result
 }

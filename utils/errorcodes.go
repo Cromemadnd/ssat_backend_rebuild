@@ -106,6 +106,11 @@ var (
 		HttpCode: 500,
 		Message:  "外部服务错误",
 	}
+	ErrDataAnomaly = ErrorCode{
+		Code:     18,
+		HttpCode: 400,
+		Message:  "数据异常",
+	}
 	ErrForbidden = ErrorCode{
 		Code:     1001,
 		HttpCode: 403,
