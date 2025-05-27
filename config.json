@@ -15,7 +15,7 @@
   },
   "jwt": {
     "secret": "qB2:uL1-fL9/qW1_lZ6*vN0~yS6+hV8<",
-    "expires": 60
+    "expires": 3600
   },
   "wechat": {
     "app_id": "?",
@@ -23,8 +23,8 @@
   },
   "admins": [
     {
-      "username": "admin",
-      "password": "123456"
+      "username": "ssat_test_admin",
+      "password": "SSAT111@"
     }
   ],
   "mongo_to_sql_threshold": 10,

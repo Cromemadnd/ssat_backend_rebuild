@@ -61,8 +61,8 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 	{
 		auth := apiRouter.Group("/auth")
 		{
-			auth.POST("/login", logMiddleware.WithLogging(2), authHandler.AdminLogin)
-			auth.POST("/wechat_login", logMiddleware.WithLogging(1), authHandler.WechatLogin)
+			auth.POST("/login", authHandler.AdminLogin)
+			auth.POST("/wechat_login", authHandler.WechatLogin)
 		}
 
 		devices := apiRouter.Group("/devices")

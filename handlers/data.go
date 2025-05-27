@@ -332,8 +332,12 @@ func (h *DataHandler) Analysis(c *gin.Context) {
 	// 构建查询条件
 	query := h.DB.Model(&models.Data{})
 	query = query.Where("my_device_id = ?", req.DeviceID)
-	query = query.Where("created_at > ?", req.StartTime)
-	query = query.Where("created_at < ?", req.EndTime)
+	if startTime, err := time.Parse(time.RFC3339, req.StartTime); err == nil {
+		query = query.Where("created_at > ?", startTime)
+	}
+	if endTime, err := time.Parse(time.RFC3339, req.EndTime); err == nil {
+		query = query.Where("created_at < ?", endTime)
+	}
 
 	// 查询数据
 	var dataList []models.Data
