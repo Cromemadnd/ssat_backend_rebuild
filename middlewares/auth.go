@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"log"
 	"ssat_backend_rebuild/models"
 	"ssat_backend_rebuild/utils"
 	"time"
@@ -68,10 +67,9 @@ func (m *AuthMiddleware) UserOnly() gin.HandlerFunc {
 			utils.Respond(c, nil, utils.ErrUnauthorized)
 			return
 		}
-		if tokenStr[:7] == "Bearer " {
+		if len(tokenStr) > 7 && tokenStr[:7] == "Bearer " {
 			tokenStr = tokenStr[7:]
 		}
-		log.Println(tokenStr)
 
 		user := &models.User{}
 		if cached, found := AuthUserCache.Get(tokenStr); found {
@@ -79,7 +77,6 @@ func (m *AuthMiddleware) UserOnly() gin.HandlerFunc {
 		} else {
 			valid, cacheDuration := m.validateToken(c, tokenStr, user, "ssat_user")
 			if !valid {
-				utils.Respond(c, nil, utils.ErrInvalidJWT)
 				return
 			}
 			AuthUserCache.Set(tokenStr, user, cacheDuration)
@@ -98,7 +95,7 @@ func (m *AuthMiddleware) AdminOnly() gin.HandlerFunc {
 			utils.Respond(c, nil, utils.ErrUnauthorized)
 			return
 		}
-		if tokenStr[:7] == "Bearer " {
+		if len(tokenStr) > 7 && tokenStr[:7] == "Bearer " {
 			tokenStr = tokenStr[7:]
 		}
 

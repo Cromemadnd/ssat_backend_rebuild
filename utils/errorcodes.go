@@ -63,7 +63,7 @@ var (
 	}
 	ErrInvalidJWT = ErrorCode{
 		Code:     9,
-		HttpCode: 400,
+		HttpCode: 401,
 		Message:  "认证信息无效",
 	}
 	ErrExpiredJWT = ErrorCode{

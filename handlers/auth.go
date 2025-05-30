@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"ssat_backend_rebuild/models"
 	"ssat_backend_rebuild/utils"
@@ -99,6 +100,7 @@ func (h *AuthHandler) WechatLogin(c *gin.Context) {
 		utils.Respond(c, nil, utils.ErrInternalServer)
 		return
 	}
+	log.Println(wxResp)
 	if wxResp.ErrCode != 0 {
 		utils.Respond(c, nil, utils.ErrBadRequest)
 		return
@@ -106,7 +108,7 @@ func (h *AuthHandler) WechatLogin(c *gin.Context) {
 
 	// 2. 查找或创建本地用户
 	user := &models.User{}
-	result := h.DB.First(user, "username = ?", wxResp.OpenID)
+	result := h.DB.First(user, "wechat_id = ?", wxResp.OpenID)
 	if result.Error != nil {
 		user = &models.User{WechatID: wxResp.OpenID}
 		if err := h.DB.Create(user).Error; err != nil {

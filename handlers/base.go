@@ -118,7 +118,11 @@ func (h *BaseHandler[T]) Create(
 			updaterFn = h.UpdateObject
 		}
 		if err := updaterFn(c, query, &result, fieldsIn); err != nil {
-			utils.Respond(c, nil, utils.ErrBadRequest)
+			utils.Respond(c, nil, utils.ErrorCode{
+				Code:     4,
+				HttpCode: 400,
+				Message:  err.Error(),
+			})
 			return
 		}
 
@@ -235,7 +239,11 @@ func (h *BaseHandler[T]) Update(
 			updaterFn = h.UpdateObject
 		}
 		if err := updaterFn(c, query, &result, fieldsIn); err != nil {
-			utils.Respond(c, nil, utils.ErrBadRequest)
+			utils.Respond(c, nil, utils.ErrorCode{
+				Code:     4,
+				HttpCode: 400,
+				Message:  err.Error(),
+			})
 			return
 		}
 

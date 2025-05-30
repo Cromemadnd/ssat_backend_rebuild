@@ -99,7 +99,7 @@ func (h *DeviceHandler) Unbind(c *gin.Context) {
 
 func (h *DeviceHandler) MyDevices(c *gin.Context) {
 	h.BaseHandler.List(
-		[]string{"uuid", "status"},
+		[]string{"uuid", "device_id", "status", "last_received"},
 		func(c *gin.Context, query *gorm.DB) *gorm.DB {
 			return query.Where("owner_id = ?", c.MustGet("CurrentUser").(*models.User).UUID)
 		},

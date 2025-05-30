@@ -18,8 +18,8 @@
     "expires": 3600
   },
   "wechat": {
-    "app_id": "?",
-    "secret": "?"
+    "app_id": "wxa032d5f0510a320f",
+    "secret": "9b2eedc0a2c5ee37c129bd5313332b49"
   },
   "admins": [
     {
