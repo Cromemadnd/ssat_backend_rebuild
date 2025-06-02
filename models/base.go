@@ -12,7 +12,7 @@ type BaseModelInterface interface {
 }
 
 type BaseModel struct {
-	UUID      uuid.UUID `json:"uuid" gorm:"primaryKey;type:char(36)"`
+	UUID      uuid.UUID `json:"uuid" gorm:"primaryKey;type:char(36);not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 

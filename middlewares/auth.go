@@ -114,3 +114,43 @@ func (m *AuthMiddleware) AdminOnly() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// 用户或管理员可访问
+func (m *AuthMiddleware) UserOrAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenStr := c.Request.Header.Get("Authorization")
+		if tokenStr == "" {
+			utils.Respond(c, nil, utils.ErrUnauthorized)
+			return
+		}
+		if len(tokenStr) > 7 && tokenStr[:7] == "Bearer " {
+			tokenStr = tokenStr[7:]
+		}
+
+		admin := &models.Admin{}
+		user := &models.User{}
+		if cached, found := AuthAdminCache.Get(tokenStr); found {
+			admin = cached.(*models.Admin)
+			c.Set("CurrentAdminUser", admin)
+		} else {
+			valid, cacheDuration := m.validateToken(c, tokenStr, admin, "ssat_admin")
+			if !valid {
+				if cached, found := AuthUserCache.Get(tokenStr); found {
+					user = cached.(*models.User)
+				} else {
+					valid, cacheDuration = m.validateToken(c, tokenStr, user, "ssat_user")
+					if !valid {
+						return
+					}
+				}
+				AuthUserCache.Set(tokenStr, user, cacheDuration)
+				c.Set("CurrentUser", user)
+			} else {
+				AuthAdminCache.Set(tokenStr, admin, cacheDuration)
+				c.Set("CurrentAdminUser", admin)
+			}
+		}
+
+		c.Next()
+	}
+}

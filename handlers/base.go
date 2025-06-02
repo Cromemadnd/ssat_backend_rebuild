@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"ssat_backend_rebuild/utils"
 	"strconv"
 
@@ -148,7 +147,7 @@ func (h *BaseHandler[T]) List(
 		// 处理分页参数
 		page := c.Query("page")
 		pageSize := c.Query("page_size")
-		log.Println(page, pageSize)
+		// log.Println(page, pageSize)
 		pageNum, err := strconv.Atoi(page)
 		if err != nil || pageNum < 1 {
 			pageNum = 1
@@ -158,7 +157,7 @@ func (h *BaseHandler[T]) List(
 			pageSizeNum = 10
 		}
 		offset := (pageNum - 1) * pageSizeNum
-		log.Println("pageNum:", pageNum, "pageSizeNum:", pageSizeNum, "offset:", offset)
+		// log.Println("pageNum:", pageNum, "pageSizeNum:", pageSizeNum, "offset:", offset)
 		query = query.Offset(offset).Limit(pageSizeNum)
 
 		results, err := h.GetObjects(query)
@@ -187,7 +186,7 @@ func (h *BaseHandler[T]) Retrieve(
 			query = query.Where("uuid = ?", c.Param("uuid"))
 		}
 
-		fmt.Println(c.Param("uuid"))
+		// fmt.Println(c.Param("uuid"))
 
 		// resultJson := make(map[string]any)
 
@@ -230,6 +229,7 @@ func (h *BaseHandler[T]) Update(
 		}
 		if len(body) > 0 {
 			if err := json.Unmarshal(body, &fieldsIn); err != nil {
+				fmt.Println("Error unmarshalling JSON:", err)
 				utils.Respond(c, nil, utils.ErrMissingParam)
 				return
 			}

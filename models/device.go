@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type Device struct {
@@ -16,11 +15,4 @@ type Device struct {
 	Owner        *User      `json:"owner" gorm:"foreignKey:OwnerID"`
 	Data         *[]Data    `json:"data" gorm:"foreignKey:MyDeviceID"`
 	BaseModel
-}
-
-func (d *Device) BeforeCreate(tx *gorm.DB) (err error) {
-	if err = d.BaseModel.BeforeCreate(tx); err != nil {
-		return err
-	}
-	return nil
 }

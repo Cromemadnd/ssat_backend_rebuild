@@ -111,6 +111,11 @@ var (
 		HttpCode: 400,
 		Message:  "数据异常",
 	}
+	ErrClosedTicket = ErrorCode{
+		Code:     19,
+		HttpCode: 400,
+		Message:  "工单已关闭",
+	}
 	ErrForbidden = ErrorCode{
 		Code:     1001,
 		HttpCode: 403,

@@ -42,6 +42,12 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 	logHandler := &handlers.LogHandler{
 		BaseHandler: handlers.BaseHandler[models.Log]{DB: db},
 	}
+	announcementHandler := &handlers.AnnouncementHandler{
+		BaseHandler: handlers.BaseHandler[models.Announcement]{DB: db},
+	}
+	ticketHandler := &handlers.TicketHandler{
+		BaseHandler: handlers.BaseHandler[models.Ticket]{DB: db},
+	}
 
 	// userHandler := &handlers.BaseHandler[models.User]{DB: db}
 	authHandler := &handlers.AuthHandler{
@@ -104,6 +110,33 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 		{
 			logs.GET("/", authMiddleware.AdminOnly(), logHandler.List)
 			// logs.GET("/:uuid", authMiddleware.AdminOnly(), logHandler.Retrieve)
+		}
+
+		announcements := apiRouter.Group("/announcements")
+		{
+			// 允许普通用户或者管理员访问
+			announcements.GET("/", authMiddleware.UserOrAdmin(), announcementHandler.List)
+			announcements.GET("/:uuid", authMiddleware.UserOrAdmin(), announcementHandler.Retrieve)
+
+			// 只允许管理员访问
+			announcements.POST("/", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), announcementHandler.Create)
+			announcements.PUT("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), announcementHandler.Update)
+			announcements.DELETE("/:uuid", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), announcementHandler.Destroy)
+		}
+
+		tickets := apiRouter.Group("/tickets")
+		{
+			// 允许普通用户访问
+			tickets.GET("/my_tickets", authMiddleware.UserOnly(), ticketHandler.ListMyTickets)
+			tickets.GET("/my_tickets/:uuid", authMiddleware.UserOnly(), ticketHandler.RetrieveMyTicket)
+			tickets.POST("/", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), ticketHandler.Create)
+			tickets.POST("/:uuid/supply", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), ticketHandler.Supply)
+			tickets.POST("/:uuid/close", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), ticketHandler.Close)
+
+			// 只允许管理员访问
+			tickets.GET("/", authMiddleware.AdminOnly(), ticketHandler.List)
+			tickets.GET("/:uuid", authMiddleware.AdminOnly(), ticketHandler.Retrieve)
+			tickets.POST("/:uuid/reply", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), ticketHandler.Reply)
 		}
 	}
 }
