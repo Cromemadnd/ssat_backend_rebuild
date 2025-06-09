@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"ssat_backend_rebuild/utils"
 	"strconv"
 
@@ -218,7 +219,7 @@ func (h *BaseHandler[T]) Update(
 	updaterFn func(c *gin.Context, query *gorm.DB, object *T, data map[string]any) error,
 ) func(c *gin.Context) {
 	return func(c *gin.Context) {
-		query := h.Select(fields)
+		query := h.DB
 		if filterFn != nil {
 			query = filterFn(c, query)
 		} else {
@@ -230,6 +231,10 @@ func (h *BaseHandler[T]) Update(
 			utils.Respond(c, nil, utils.ErrNotFound)
 			return
 		}
+
+		log.Println("Updating object with UUID:", c.Param("uuid"))
+		log.Println("Updating fields:", fields)
+		log.Println("Updating object:", result)
 
 		fieldsIn, err := h.parseRequestData(c)
 		if err != nil {
