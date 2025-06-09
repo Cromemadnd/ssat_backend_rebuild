@@ -14,11 +14,10 @@ type BaseHandler[T any] struct {
 }
 
 // ===== 底层处理器 ======
-
 func (h *BaseHandler[T]) Select(fields []string) *gorm.DB {
 	// 筛选整个过程中需要处理的字段
 	query := h.DB.Model(new(T))
-	if fields != nil {
+	if len(fields) > 0 {
 		return query.Select(fields)
 	}
 	return query
@@ -61,24 +60,54 @@ func (h *BaseHandler[T]) DeleteObject(query *gorm.DB, object *T) error {
 	return query.Delete(&object).Error
 }
 
-// 只保留结构体中指定 fields 的 json tag 字段
+// 解析请求体数据的公共方法
+func (h *BaseHandler[T]) parseRequestData(c *gin.Context) (map[string]any, error) {
+	fieldsIn := make(map[string]any)
+	body, err := c.GetRawData()
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &fieldsIn); err != nil {
+			return nil, err
+		}
+	}
+	return fieldsIn, nil
+}
+
+// 获取分页参数的公共方法
+func (h *BaseHandler[T]) getPaginationParams(c *gin.Context) (offset, limit int) {
+	page := c.Query("page")
+	pageSize := c.Query("page_size")
+
+	pageNum, err := strconv.Atoi(page)
+	if err != nil || pageNum < 1 {
+		pageNum = 1
+	}
+
+	pageSizeNum, err := strconv.Atoi(pageSize)
+	if err != nil || pageSizeNum < 1 {
+		pageSizeNum = 10
+	}
+
+	offset = (pageNum - 1) * pageSizeNum
+	return offset, pageSizeNum
+}
+
+// 优化的 StructToJsonMap 函数
 func StructToJsonMap(obj any, fields []string) map[string]any {
 	b, _ := json.Marshal(obj)
 	var m map[string]any
 	json.Unmarshal(b, &m)
 
-	if fields == nil {
+	if len(fields) == 0 {
 		return m
 	}
 
-	fieldsSet := make(map[string]struct{}, len(fields))
-	for _, f := range fields {
-		fieldsSet[f] = struct{}{}
-	}
-	filtered := make(map[string]any)
-	for k, v := range m {
-		if _, ok := fieldsSet[k]; ok {
-			filtered[k] = v
+	filtered := make(map[string]any, len(fields))
+	for _, field := range fields {
+		if value, exists := m[field]; exists {
+			filtered[field] = value
 		}
 	}
 	return filtered
@@ -99,17 +128,10 @@ func (h *BaseHandler[T]) Create(
 			return
 		}
 
-		fieldsIn := make(map[string]any)
-		body, err := c.GetRawData()
+		fieldsIn, err := h.parseRequestData(c)
 		if err != nil {
 			utils.Respond(c, nil, utils.ErrMissingParam)
 			return
-		}
-		if len(body) > 0 {
-			if err := json.Unmarshal(body, &fieldsIn); err != nil {
-				utils.Respond(c, nil, utils.ErrMissingParam)
-				return
-			}
 		}
 
 		if updaterFn == nil {
@@ -124,7 +146,10 @@ func (h *BaseHandler[T]) Create(
 			return
 		}
 
-		h.DB.Save(&result)
+		if err := h.DB.Save(&result).Error; err != nil {
+			utils.Respond(c, nil, utils.ErrInternalServer)
+			return
+		}
 		utils.Respond(c, result, utils.ErrCreated)
 	}
 }
@@ -141,26 +166,14 @@ func (h *BaseHandler[T]) List(
 
 		// 计算总数
 		var total int64
-		query.Count(&total)
+		if err := query.Count(&total).Error; err != nil {
+			utils.Respond(c, nil, utils.ErrInternalServer)
+			return
+		}
 
 		// 处理分页参数
-		page := c.Query("page")
-		pageSize := c.Query("page_size")
-		// log.Println(page, pageSize)
-		pageNum, err := strconv.Atoi(page)
-		if err != nil || pageNum < 1 {
-			pageNum = 1
-		}
-		pageSizeNum, err := strconv.Atoi(pageSize)
-		if err != nil || pageSizeNum < 1 {
-			pageSizeNum = 10
-		}
-		offset := (pageNum - 1) * pageSizeNum
-		// log.Println("pageNum:", pageNum, "pageSizeNum:", pageSizeNum, "offset:", offset)
-		query = query.Offset(offset).Limit(pageSizeNum)
-
-		// 将 query 按 created_at 降序排序
-		query = query.Order("created_at DESC")
+		offset, limit := h.getPaginationParams(c)
+		query = query.Offset(offset).Limit(limit).Order("created_at DESC")
 
 		results, err := h.GetObjects(query)
 		if err != nil {
@@ -188,10 +201,6 @@ func (h *BaseHandler[T]) Retrieve(
 			query = query.Where("uuid = ?", c.Param("uuid"))
 		}
 
-		// fmt.Println(c.Param("uuid"))
-
-		// resultJson := make(map[string]any)
-
 		result, err := h.GetObject(query)
 		if err != nil {
 			utils.Respond(c, nil, utils.ErrNotFound)
@@ -199,7 +208,6 @@ func (h *BaseHandler[T]) Retrieve(
 		}
 
 		resultJson := StructToJsonMap(result, fields)
-
 		utils.Respond(c, resultJson, utils.ErrOK)
 	}
 }
@@ -223,18 +231,10 @@ func (h *BaseHandler[T]) Update(
 			return
 		}
 
-		fieldsIn := make(map[string]any)
-		body, err := c.GetRawData()
+		fieldsIn, err := h.parseRequestData(c)
 		if err != nil {
 			utils.Respond(c, nil, utils.ErrMissingParam)
 			return
-		}
-		if len(body) > 0 {
-			if err := json.Unmarshal(body, &fieldsIn); err != nil {
-				// fmt.Println("Error unmarshalling JSON:", err)
-				utils.Respond(c, nil, utils.ErrMissingParam)
-				return
-			}
 		}
 
 		if updaterFn == nil {
@@ -249,7 +249,10 @@ func (h *BaseHandler[T]) Update(
 			return
 		}
 
-		query.Save(&result)
+		if err := query.Save(&result).Error; err != nil {
+			utils.Respond(c, nil, utils.ErrInternalServer)
+			return
+		}
 		utils.Respond(c, result, utils.ErrOK)
 	}
 }

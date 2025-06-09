@@ -111,19 +111,19 @@ func (h *TicketHandler) Reply(c *gin.Context) {
 				Subject: c.MustGet("CurrentAdminUser").(*models.Admin).Username,
 				Content: data["content"].(string),
 			}
-			if err := query.Create(chat).Error; err != nil {
+			if err := h.DB.Create(chat).Error; err != nil {
 				return err
 			}
 			object.Status = 1 // 更新状态为处理中
 			object.ChatHistory = append(object.ChatHistory, chat)
 			return query.Save(object).Error
 		},
-	)
+	)(c)
 }
 
 func (h *TicketHandler) Supply(c *gin.Context) {
 	h.BaseHandler.Update(
-		nil,
+		[]string{},
 		nil,
 		func(c *gin.Context, query *gorm.DB, object *models.Ticket, data map[string]any) error {
 			if data["content"] == nil {
@@ -139,7 +139,7 @@ func (h *TicketHandler) Supply(c *gin.Context) {
 				Type:    0, // 用户消息
 				Content: data["content"].(string),
 			}
-			if err := query.Create(chat).Error; err != nil {
+			if err := h.DB.Create(chat).Error; err != nil {
 				return err
 			}
 			object.ChatHistory = append(object.ChatHistory, chat)
