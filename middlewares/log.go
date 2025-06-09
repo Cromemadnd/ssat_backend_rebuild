@@ -33,7 +33,7 @@ func (m *LogMiddleware) WithLogging(logType uint8) gin.HandlerFunc {
 			Path:    c.Request.URL.Path,
 			Method:  c.Request.Method,
 			IP:      c.ClientIP(),
-			Status:  c.MustGet("status").(*utils.ErrorCode),
+			Status:  c.MustGet("Status").(*utils.ErrorCode),
 		}
 		m.DB.Create(&logEntry)
 	}

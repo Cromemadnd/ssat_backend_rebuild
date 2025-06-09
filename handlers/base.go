@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"ssat_backend_rebuild/utils"
 	"strconv"
 
@@ -160,6 +159,9 @@ func (h *BaseHandler[T]) List(
 		// log.Println("pageNum:", pageNum, "pageSizeNum:", pageSizeNum, "offset:", offset)
 		query = query.Offset(offset).Limit(pageSizeNum)
 
+		// 将 query 按 created_at 降序排序
+		query = query.Order("created_at DESC")
+
 		results, err := h.GetObjects(query)
 		if err != nil {
 			utils.Respond(c, nil, utils.ErrInternalServer)
@@ -229,7 +231,7 @@ func (h *BaseHandler[T]) Update(
 		}
 		if len(body) > 0 {
 			if err := json.Unmarshal(body, &fieldsIn); err != nil {
-				fmt.Println("Error unmarshalling JSON:", err)
+				// fmt.Println("Error unmarshalling JSON:", err)
 				utils.Respond(c, nil, utils.ErrMissingParam)
 				return
 			}

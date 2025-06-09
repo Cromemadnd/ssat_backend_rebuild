@@ -94,7 +94,7 @@ func (h *TicketHandler) RetrieveMyTicket(c *gin.Context) {
 
 func (h *TicketHandler) Reply(c *gin.Context) {
 	h.BaseHandler.Update(
-		nil,
+		[]string{},
 		nil,
 		func(c *gin.Context, query *gorm.DB, object *models.Ticket, data map[string]any) error {
 			if data["content"] == nil {
@@ -108,7 +108,7 @@ func (h *TicketHandler) Reply(c *gin.Context) {
 			chat := &models.TicketChat{
 				Ticket:  object,
 				Type:    1, // 管理员消息
-				Subject: c.MustGet("CurrentUser").(*models.Admin).Username,
+				Subject: c.MustGet("CurrentAdminUser").(*models.Admin).Username,
 				Content: data["content"].(string),
 			}
 			if err := query.Create(chat).Error; err != nil {

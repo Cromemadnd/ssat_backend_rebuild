@@ -102,7 +102,7 @@ func (h *AuthHandler) WechatLogin(c *gin.Context) {
 	}
 	log.Println(wxResp)
 	if wxResp.ErrCode != 0 {
-		utils.Respond(c, nil, utils.ErrBadRequest)
+		utils.Respond(c, wxResp, utils.ErrBadRequest)
 		return
 	}
 

@@ -22,7 +22,7 @@ var (
 )
 
 // 验证token并获取用户/管理员信息
-func (m *AuthMiddleware) validateToken(c *gin.Context, tokenStr string, model interface{}, issuer string) (bool, time.Duration) {
+func (m *AuthMiddleware) validateToken(c *gin.Context, tokenStr string, model interface{}, issuer string) (utils.ErrorCode, time.Duration) {
 	claims := &jwt.RegisteredClaims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(m.JWTSecret), nil
@@ -33,30 +33,26 @@ func (m *AuthMiddleware) validateToken(c *gin.Context, tokenStr string, model in
 	)
 
 	if err != nil {
-		utils.Respond(c, nil, utils.ErrInvalidJWT)
-		return false, 0
+		return utils.ErrInvalidJWT, 0
 	}
 
 	uuid, err := token.Claims.GetSubject()
 	if err != nil {
-		utils.Respond(c, nil, utils.ErrInvalidJWT)
-		return false, 0
+		return utils.ErrInvalidJWT, 0
 	}
 
 	result := m.DB.First(model, "uuid = ?", uuid)
 	if result.Error != nil {
-		utils.Respond(c, nil, utils.ErrUserNotFound)
-		return false, 0
+		return utils.ErrUserNotFound, 0
 	}
 
 	// 获取 token 过期时间
 	exp, err := token.Claims.GetExpirationTime()
 	if err != nil {
-		utils.Respond(c, nil, utils.ErrInvalidJWT)
-		return false, 0
+		return utils.ErrInvalidJWT, 0
 	}
 
-	return true, time.Until(exp.Time)
+	return utils.ErrOK, time.Until(exp.Time)
 }
 
 // 验证用户是否已登录
@@ -75,11 +71,12 @@ func (m *AuthMiddleware) UserOnly() gin.HandlerFunc {
 		if cached, found := AuthUserCache.Get(tokenStr); found {
 			user = cached.(*models.User)
 		} else {
-			valid, cacheDuration := m.validateToken(c, tokenStr, user, "ssat_user")
-			if !valid {
+			err, cacheDuration := m.validateToken(c, tokenStr, user, "ssat_user")
+			AuthUserCache.Set(tokenStr, user, cacheDuration)
+			if err != utils.ErrOK {
+				utils.Respond(c, nil, err)
 				return
 			}
-			AuthUserCache.Set(tokenStr, user, cacheDuration)
 		}
 
 		c.Set("CurrentUser", user)
@@ -103,8 +100,9 @@ func (m *AuthMiddleware) AdminOnly() gin.HandlerFunc {
 		if cached, found := AuthAdminCache.Get(tokenStr); found {
 			admin = cached.(*models.Admin)
 		} else {
-			valid, cacheDuration := m.validateToken(c, tokenStr, admin, "ssat_admin")
-			if !valid {
+			err, cacheDuration := m.validateToken(c, tokenStr, admin, "ssat_admin")
+			if err != utils.ErrOK {
+				utils.Respond(c, nil, err)
 				return
 			}
 			AuthAdminCache.Set(tokenStr, admin, cacheDuration)
@@ -133,13 +131,14 @@ func (m *AuthMiddleware) UserOrAdmin() gin.HandlerFunc {
 			admin = cached.(*models.Admin)
 			c.Set("CurrentAdminUser", admin)
 		} else {
-			valid, cacheDuration := m.validateToken(c, tokenStr, admin, "ssat_admin")
-			if !valid {
+			err, cacheDuration := m.validateToken(c, tokenStr, admin, "ssat_admin")
+			if err != utils.ErrOK {
 				if cached, found := AuthUserCache.Get(tokenStr); found {
 					user = cached.(*models.User)
 				} else {
-					valid, cacheDuration = m.validateToken(c, tokenStr, user, "ssat_user")
-					if !valid {
+					err, cacheDuration = m.validateToken(c, tokenStr, user, "ssat_user")
+					if err != utils.ErrOK {
+						utils.Respond(c, nil, err)
 						return
 					}
 				}
