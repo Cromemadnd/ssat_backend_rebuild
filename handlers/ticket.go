@@ -105,13 +105,13 @@ func (h *TicketHandler) Reply(c *gin.Context) {
 				return utils.ErrClosedTicket
 			}
 
-			chat := &models.TicketChat{
+			chat := models.TicketChat{
 				Ticket:  object,
 				Type:    1, // 管理员消息
 				Subject: c.MustGet("CurrentAdminUser").(*models.Admin).Username,
 				Content: data["content"].(string),
 			}
-			if err := h.DB.Create(chat).Error; err != nil {
+			if err := h.DB.Create(&chat).Error; err != nil {
 				return err
 			}
 			object.Status = 1 // 更新状态为处理中
@@ -134,12 +134,12 @@ func (h *TicketHandler) Supply(c *gin.Context) {
 				return utils.ErrClosedTicket
 			}
 
-			chat := &models.TicketChat{
+			chat := models.TicketChat{
 				Ticket:  object,
 				Type:    0, // 用户消息
 				Content: data["content"].(string),
 			}
-			if err := h.DB.Create(chat).Error; err != nil {
+			if err := h.DB.Create(&chat).Error; err != nil {
 				return err
 			}
 			object.ChatHistory = append(object.ChatHistory, chat)
