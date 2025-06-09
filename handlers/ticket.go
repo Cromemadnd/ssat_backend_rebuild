@@ -78,7 +78,9 @@ func (h *TicketHandler) ListMyTickets(c *gin.Context) {
 func (h *TicketHandler) Retrieve(c *gin.Context) {
 	h.BaseHandler.Retrieve(
 		nil,
-		nil,
+		func(c *gin.Context, query *gorm.DB) *gorm.DB {
+			return query.Preload("ChatHistory")
+		},
 	)(c)
 }
 
