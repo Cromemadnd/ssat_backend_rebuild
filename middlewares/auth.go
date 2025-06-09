@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"errors"
 	"ssat_backend_rebuild/models"
 	"ssat_backend_rebuild/utils"
 	"time"
@@ -33,6 +34,10 @@ func (m *AuthMiddleware) validateToken(c *gin.Context, tokenStr string, model in
 	)
 
 	if err != nil {
+		// 判断无效原因是否是token过期
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return utils.ErrExpiredJWT, 0
+		}
 		return utils.ErrInvalidJWT, 0
 	}
 
