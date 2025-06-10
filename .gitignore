@@ -2,3 +2,4 @@ tmp/
 .vscode
 *.exe
 ssat_backend
+ssat_backend_linux_amd64

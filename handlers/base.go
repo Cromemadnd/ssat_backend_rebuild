@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"ssat_backend_rebuild/utils"
 	"strconv"
@@ -247,9 +246,9 @@ func (h *BaseHandler[T]) Update(
 			return
 		}
 
-		log.Println("Updating object with UUID:", c.Param("uuid"))
-		log.Println("Updating fields:", fields)
-		log.Println("Updating object:", result)
+		// log.Println("Updating object with UUID:", c.Param("uuid"))
+		// log.Println("Updating fields:", fields)
+		// log.Println("Updating object:", result)
 
 		fieldsIn, err := h.parseRequestData(c)
 		if err != nil {

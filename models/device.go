@@ -12,7 +12,7 @@ type Device struct {
 	Secret       string     `json:"-" gorm:"type:char(255)"`
 	Status       int        `json:"status" gorm:"type:int;default:0"`
 	LastReceived *time.Time `json:"last_received" gorm:"null"`
-	OwnerID      *uuid.UUID `json:"-" gorm:"type:char(36);null"`
+	OwnerID      *uuid.UUID `json:"owner_id" gorm:"type:char(36);null"`
 	Owner        *User      `json:"owner" gorm:"foreignKey:OwnerID"`
 	Data         *[]Data    `json:"data" gorm:"foreignKey:MyDeviceID"`
 	BaseModel

@@ -110,7 +110,7 @@ func (h *TicketHandler) Retrieve(c *gin.Context) {
 	h.BaseHandler.Retrieve(
 		nil,
 		func(c *gin.Context, query *gorm.DB) *gorm.DB {
-			return query.Preload("ChatHistory")
+			return query.Preload("ChatHistory").Where("uuid = ?", c.Param("uuid"))
 		},
 	)(c)
 }
@@ -120,7 +120,7 @@ func (h *TicketHandler) RetrieveMyTicket(c *gin.Context) {
 		nil,
 		func(c *gin.Context, query *gorm.DB) *gorm.DB {
 			user := c.MustGet("CurrentUser").(*models.User)
-			return query.Where("user_uuid = ? AND uuid = ?", user.UUID, c.Param("uuid"))
+			return query.Preload("ChatHistory").Where("user_uuid = ? AND uuid = ?", user.UUID, c.Param("uuid"))
 		},
 	)(c)
 }
@@ -134,7 +134,7 @@ func (h *TicketHandler) Reply(c *gin.Context) {
 				return utils.ErrMissingParam
 			}
 
-			if object.Status == 2 {
+			if object.Status == 3 {
 				return utils.ErrClosedTicket
 			}
 
@@ -147,7 +147,7 @@ func (h *TicketHandler) Reply(c *gin.Context) {
 			if err := h.DB.Create(&chat).Error; err != nil {
 				return err
 			}
-			object.Status = 1 // 更新状态为处理中
+			object.Status = 1 // 更新状态为等待用户回应
 			object.ChatHistory = append(object.ChatHistory, chat)
 			return query.Save(object).Error
 		},
@@ -163,7 +163,7 @@ func (h *TicketHandler) Supply(c *gin.Context) {
 				return utils.ErrMissingParam
 			}
 
-			if object.Status == 2 {
+			if object.Status == 3 {
 				return utils.ErrClosedTicket
 			}
 
@@ -175,8 +175,9 @@ func (h *TicketHandler) Supply(c *gin.Context) {
 			if err := h.DB.Create(&chat).Error; err != nil {
 				return err
 			}
+			object.Status = 2 // 更新状态为等待管理员回应
 			object.ChatHistory = append(object.ChatHistory, chat)
-			return nil
+			return query.Save(object).Error
 		},
 	)(c)
 }
@@ -186,10 +187,11 @@ func (h *TicketHandler) Close(c *gin.Context) {
 		nil,
 		nil,
 		func(c *gin.Context, query *gorm.DB, object *models.Ticket, data map[string]any) error {
-			if object.Status == 2 {
+			if object.Status == 3 {
 				return utils.ErrClosedTicket
 			}
-			object.Status = 2 // 更新状态为已关闭
+
+			object.Status = 3 // 更新状态为已关闭
 			return query.Save(object).Error
 		},
 	)(c)

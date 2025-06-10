@@ -29,7 +29,7 @@ func (h *UserHandler) Retrieve(c *gin.Context) {
 
 func (h *UserHandler) List(c *gin.Context) {
 	h.BaseHandler.List(
-		[]string{"uuid", "wechat_id"},
+		nil,
 		nil,
 	)(c)
 }

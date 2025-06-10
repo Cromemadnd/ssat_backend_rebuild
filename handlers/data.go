@@ -417,6 +417,131 @@ func (h *DataHandler) Analysis(c *gin.Context) {
 	}, utils.ErrOK)
 }
 
+// 在 DataHandler 中添加 MyAnalysis 函数
+func (h *DataHandler) MyAnalysis(c *gin.Context) {
+	var req DataAnalysisRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Respond(c, nil, utils.ErrMissingParam)
+		return
+	}
+
+	// 获取当前用户
+	currentUser, exists := c.Get("CurrentUser")
+	if !exists {
+		utils.Respond(c, nil, utils.ErrUnauthorized)
+		return
+	}
+	user, ok := currentUser.(*models.User)
+	if !ok {
+		utils.Respond(c, nil, utils.ErrUnauthorized)
+		return
+	}
+
+	// 查询设备并检查所有者权限
+	var device models.Device
+	if err := h.DB.Preload("Owner").First(&device, "device_id = ?", req.DeviceID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			utils.Respond(c, nil, utils.ErrUnknownDevice)
+		} else {
+			utils.Respond(c, nil, utils.ErrInternalServer)
+		}
+		return
+	}
+
+	// 检查设备所有者权限
+	if device.OwnerID == nil || *device.OwnerID != user.UUID {
+		utils.Respond(c, nil, utils.ErrForbidden)
+		return
+	}
+
+	// 构建查询条件 - 使用设备的UUID而不是DeviceID
+	query := h.DB.Model(&models.Data{})
+	query = query.Where("my_device_id = ?", device.UUID) // 使用设备的UUID
+	if startTime, err := time.Parse(time.RFC3339, req.StartTime); err == nil {
+		query = query.Where("created_at > ?", startTime)
+	}
+	if endTime, err := time.Parse(time.RFC3339, req.EndTime); err == nil {
+		query = query.Where("created_at < ?", endTime)
+	}
+
+	// 查询数据
+	var dataList []models.Data
+	if err := query.Find(&dataList).Error; err != nil {
+		log.Println("查询数据失败：", err)
+		utils.Respond(c, nil, utils.ErrInternalServer)
+		return
+	}
+	if len(dataList) == 0 {
+		utils.Respond(c, nil, utils.ErrNoData)
+		return
+	}
+
+	// 生成分析提示
+	prompt := getAIPrompt(req, dataList)
+	aiReq := map[string]interface{}{
+		"messages": []map[string]interface{}{
+			{ 
+				"role":    "system",
+				"content": prompt,
+			},
+		},
+		"model": req.Model,
+	}
+	body, _ := json.Marshal(aiReq)
+
+	reqHttp, err := http.NewRequest("POST", h.AiApiUrl, bytes.NewReader(body))
+	if err != nil {
+		log.Println("创建HTTP请求失败：", err)
+		utils.Respond(c, nil, utils.ErrExternalService)
+		return
+	}
+	reqHttp.Header.Set("Content-Type", "application/json")
+	reqHttp.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.AiApiKey))
+
+	resp, err := http.DefaultClient.Do(reqHttp)
+	if err != nil {
+		log.Println("AI API请求失败：", err)
+		utils.Respond(c, nil, utils.ErrExternalService)
+		return
+	}
+	defer resp.Body.Close()
+
+	var aiResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&aiResp); err != nil {
+		log.Println("解析AI响应失败：", err)
+		utils.Respond(c, nil, utils.ErrInternalServer)
+		return
+	}
+
+	// 解析响应
+	choices, ok := aiResp["choices"].([]interface{})
+	if !ok || len(choices) == 0 {
+		utils.Respond(c, aiResp, utils.ErrExternalService)
+		return
+	}
+	choiceMap, ok := choices[0].(map[string]interface{})
+	if !ok {
+		utils.Respond(c, aiResp, utils.ErrExternalService)
+		return
+	}
+	message, ok := choiceMap["message"].(map[string]interface{})
+	if !ok {
+		utils.Respond(c, aiResp, utils.ErrExternalService)
+		return
+	}
+	content, ok := message["content"].(string)
+	if !ok {
+		utils.Respond(c, aiResp, utils.ErrExternalService)
+		return
+	}
+
+	utils.Respond(c, gin.H{
+		"detail":     content,
+		"data_count": len(dataList),
+		"device":     device.DeviceID,
+	}, utils.ErrOK)
+}
+
 // 场景和季节的数据范围定义
 type DataRange struct {
 	Min float32

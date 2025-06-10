@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"ssat_backend_rebuild/models"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -43,7 +44,7 @@ func (h *DeviceHandler) Retrieve(c *gin.Context) {
 
 func (h *DeviceHandler) List(c *gin.Context) {
 	h.BaseHandler.List(
-		[]string{"uuid", "device_id", "nickname", "status", "last_received"},
+		nil,
 		nil,
 	)(c)
 }
@@ -117,6 +118,14 @@ func (h *DeviceHandler) MyDevices(c *gin.Context) {
 	h.BaseHandler.List(
 		[]string{"uuid", "device_id", "status", "last_received", "nickname"},
 		func(c *gin.Context, query *gorm.DB) *gorm.DB {
+			if c.Query("status") != "" {
+				status, err := strconv.Atoi(c.Query("status"))
+				if err != nil {
+					return query
+				}
+				query = query.Where("status = ?", status)
+			}
+
 			return query.Where("owner_id = ?", c.MustGet("CurrentUser").(*models.User).UUID)
 		},
 	)(c)
