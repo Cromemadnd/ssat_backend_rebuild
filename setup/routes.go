@@ -11,20 +11,6 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, config Config) {
-	// 添加 CORS 中间件
-	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		// c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
-
 	// 初始化处理器
 	deviceHandler := &handlers.DeviceHandler{
 		BaseHandler: handlers.BaseHandler[models.Device]{DB: db},
@@ -102,6 +88,8 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 		data := apiRouter.Group("/data")
 		{
 			data.POST("/upload", logMiddleware.WithLogging(0), dataHandler.Upload)
+
+			data.GET("/my_data", authMiddleware.UserOnly(), dataHandler.MyData)
 
 			data.GET("/", authMiddleware.AdminOnly(), dataHandler.List)
 			data.POST("/analysis", authMiddleware.AdminOnly(), logMiddleware.WithLogging(2), dataHandler.Analysis)

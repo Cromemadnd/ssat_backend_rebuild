@@ -268,6 +268,29 @@ func (h *DataHandler) List(c *gin.Context) {
 	)(c)
 }
 
+func (h *DataHandler) MyData(c *gin.Context) {
+	h.BaseHandler.List(
+		nil,
+		func(c *gin.Context, query *gorm.DB) *gorm.DB {
+			// 通过设备ID查询数据
+			deviceId := c.Query("device_id")
+			before := c.Query("before")
+			after := c.Query("after")
+
+			if deviceId != "" {
+				query = query.Where("my_device_id = ?", deviceId)
+			}
+			if before, err := time.Parse(time.RFC3339, before); err == nil {
+				query = query.Where("created_at < ?", before)
+			}
+			if after, err := time.Parse(time.RFC3339, after); err == nil {
+				query = query.Where("created_at > ?", after)
+			}
+			return query
+		},
+	)(c)
+}
+
 type DataAnalysisRequest struct {
 	DeviceID  string `json:"device_id" binding:"required"`   // 设备id
 	Type      string `json:"report_type" binding:"required"` // 分析类型
@@ -480,7 +503,7 @@ func (h *DataHandler) MyAnalysis(c *gin.Context) {
 	prompt := getAIPrompt(req, dataList)
 	aiReq := map[string]interface{}{
 		"messages": []map[string]interface{}{
-			{ 
+			{
 				"role":    "system",
 				"content": prompt,
 			},
