@@ -4,3 +4,4 @@ tmp/
 ssat_backend
 ssat_backend_linux_amd64
 ssat_backend_rebuild
+config.json
