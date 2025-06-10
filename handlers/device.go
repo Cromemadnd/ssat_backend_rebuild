@@ -51,9 +51,30 @@ func (h *DeviceHandler) List(c *gin.Context) {
 
 func (h *DeviceHandler) Update(c *gin.Context) {
 	h.BaseHandler.Update(
-		[]string{"device_id", "status", "owner_id"},
 		nil,
 		nil,
+		func(c *gin.Context, query *gorm.DB, device *models.Device, data map[string]any) error {
+			if device_id, ok := data["device_id"].(string); ok && device_id != "" {
+				device.DeviceID = device_id
+			}
+
+			if status, ok := data["status"].(string); ok {
+				statusInt, err := strconv.Atoi(status)
+				if err != nil {
+					return errors.New("invalid status")
+				}
+				device.Status = statusInt
+			}
+
+			if owner_id, ok := data["owner_id"].(string); ok && owner_id != "" {
+				uid, err := uuid.Parse(owner_id)
+				if err != nil {
+					return errors.New("invalid owner_id")
+				}
+				device.OwnerID = &uid
+			}
+			return nil
+		},
 	)(c)
 }
 
