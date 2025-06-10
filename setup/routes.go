@@ -78,6 +78,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, dbMongo *mongo.Collection, con
 			devices.GET("/my_devices/:uuid", authMiddleware.UserOnly(), deviceHandler.RetrieveMyDevice)
 			devices.POST("/:uuid/bind", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.Bind)
 			devices.POST("/:uuid/unbind", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.Unbind)
+			devices.POST("/:uuid/set_nickname", authMiddleware.UserOnly(), logMiddleware.WithLogging(1), deviceHandler.SetNickname)
 
 			// 只允许管理员访问
 			devices.GET("/", authMiddleware.AdminOnly(), deviceHandler.List)

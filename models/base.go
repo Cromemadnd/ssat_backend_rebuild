@@ -12,8 +12,8 @@ type BaseModelInterface interface {
 }
 
 type BaseModel struct {
-	UUID      uuid.UUID `json:"uuid" gorm:"primaryKey;type:char(36);not null"`
-	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UUID      uuid.UUID `json:"uuid" gorm:"primaryKey;type:char(36);not null;<-:create"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime;<-:create"`
 }
 
 func (m *BaseModel) BeforeCreate(tx *gorm.DB) error {

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -15,8 +16,38 @@ type TicketHandler struct {
 
 func (h *TicketHandler) Create(c *gin.Context) {
 	h.BaseHandler.Create(
-		[]string{"title", "content", "type", "device_uuid"},
+		nil,
 		func(c *gin.Context, query *gorm.DB, object *models.Ticket, data map[string]any) error {
+			object.Title = data["title"].(string)
+			if object.Title == "" {
+				return utils.ErrMissingParam
+			}
+
+			object.Content = data["content"].(string)
+			if object.Content == "" {
+				return utils.ErrMissingParam
+			}
+
+			if typeStr, ok := data["feedback_type"].(string); ok {
+				if t, err := strconv.ParseUint(typeStr, 10, 8); err == nil {
+					object.Type = uint8(t)
+				} else {
+					return utils.ErrBadRequest
+				}
+			} else {
+				object.Type = 0 // 默认类型
+			}
+
+			if deviceUUIDStr, ok := data["device_uuid"].(string); ok && deviceUUIDStr != "" {
+				if deviceUUID, err := uuid.Parse(deviceUUIDStr); err == nil {
+					object.DeviceUUID = &deviceUUID
+				} else {
+					return utils.ErrBadRequest
+				}
+			} else {
+				object.DeviceUUID = nil // 如果没有提供设备UUID，则设置为nil
+			}
+
 			object.User = c.MustGet("CurrentUser").(*models.User)
 			object.Status = 0 // 默认状态为未处理
 			return nil
